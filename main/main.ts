@@ -3,8 +3,8 @@ import { execSync, spawn } from 'child_process'
 import { app, ipcMain, dialog, shell, BrowserWindow } from 'electron'
 import serve from 'electron-serve'
 import { createWindow } from './helpers/create-window'
-import { getDataDir, loadAppData, saveAppData } from './helpers/data-store'
-import { callGroq } from './groq'
+import { getDataDir, loadAppData, saveAppData, getSettings, saveSettings } from './helpers/data-store'
+import { callAiTool } from './aiTool'
 
 const isProd = process.env.NODE_ENV === 'production'
 const devPort = process.argv[2]
@@ -78,14 +78,35 @@ ipcMain.handle('data:getDir', async () => {
   return getDataDir()
 })
 
-ipcMain.handle('groq:call', async (_event, request: string, format?: string) => {
-  return callGroq(request, format)
+ipcMain.handle('settings:get', async () => {
+  return getSettings()
+})
+
+ipcMain.handle('settings:set', async (_event, patch: { aiCommand?: string }) => {
+  return saveSettings(patch)
+})
+
+ipcMain.handle('ai:call', async (_event, request: string, format?: string) => {
+  const settings = await getSettings()
+  return callAiTool(settings.aiCommand, request, format)
 })
 
 ipcMain.handle('dialog:chooseFolder', async () => {
   const win = BrowserWindow.getFocusedWindow()
   const options: Electron.OpenDialogOptions = {
     properties: ['openDirectory', 'createDirectory'],
+  }
+  const result = win
+    ? await dialog.showOpenDialog(win, options)
+    : await dialog.showOpenDialog(options)
+  if (result.canceled || !result.filePaths[0]) return null
+  return result.filePaths[0]
+})
+
+ipcMain.handle('dialog:chooseFile', async () => {
+  const win = BrowserWindow.getFocusedWindow()
+  const options: Electron.OpenDialogOptions = {
+    properties: ['openFile'],
   }
   const result = win
     ? await dialog.showOpenDialog(win, options)

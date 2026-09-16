@@ -380,7 +380,7 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
   }
 
   async function callWithJson<T>(request: string, parser: (answer: string) => T): Promise<T> {
-    return requestAiJson(request, (value) => window.api.groq.call(value), parser, setAttempt)
+    return requestAiJson(request, (value) => window.api.ai.call(value), parser, setAttempt)
   }
 
   function applyNotes(selfId: string) {

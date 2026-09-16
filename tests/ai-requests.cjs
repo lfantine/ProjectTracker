@@ -9,7 +9,7 @@ function load(file) {
   return context.exports
 }
 const { buildAiContext, requestAiJson } = load('renderer/lib/aiCreation.ts')
-const { groqErrorMessage } = load('main/groq.ts')
+const { aiToolErrorMessage } = load('main/aiTool.ts')
 async function main() {
   const data = { projects: [{ id: 'p1', name: 'Target', noteIds: ['n1'], tasks: [{ id: 't1', status: 'fait' }] }, { id: 'p2', name: 'Other', description: 'x'.repeat(100000), noteIds: [] }], notes: [{ id: 'n1', title: 'Linked', content: 'Keep complete', tags: [] }, { id: 'n2', title: 'Other', content: 'x'.repeat(100000), tags: [] }], errors: [] }
   const context = JSON.parse(buildAiContext(data, { action: 'edit', type: 'project', targetId: 'p1' }))
@@ -28,7 +28,7 @@ async function main() {
   calls = 0
   await assert.rejects(requestAiJson('request', async () => { calls++; return 'invalid' }, JSON.parse, () => {}), /3 tentatives/)
   assert.equal(calls, 3)
-  assert.match(groqErrorMessage('missing field `choices`'), /motif exact/)
+  assert.match(aiToolErrorMessage('groqtool', 'missing field `choices`'), /motif exact/)
   console.log('AI context and error regression tests passed')
 }
 main().catch((error) => { console.error(error); process.exitCode = 1 })

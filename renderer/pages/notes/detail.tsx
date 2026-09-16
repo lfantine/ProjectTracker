@@ -106,7 +106,7 @@ export default function NoteDetailPage() {
     ].join('\n')
 
     try {
-      const answer = await window.api.groq.call(request)
+      const answer = await window.api.ai.call(request)
       if (aiRequestIdRef.current !== requestId) return
       setAiResponse(answer.trim())
     } catch (error) {
