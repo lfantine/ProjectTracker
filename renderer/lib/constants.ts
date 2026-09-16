@@ -1,0 +1,107 @@
+import type {
+  ChecklistItem,
+  ChecklistStatus,
+  ChecklistType,
+  ModuleType,
+  ProjectStatus,
+  ProjectType,
+  TaskStatus,
+} from './types'
+
+// Max number of modules of a given type allowed in a project's layout at once.
+// A type with no entry here has no limit.
+export const MODULE_MAX_INSTANCES: Partial<Record<ModuleType, number>> = {
+  stack: 1,
+  deadlines: 2,
+}
+
+export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
+  actif: 'Actif',
+  pause: 'En pause',
+  termine: 'Terminé',
+  aborted: 'Annulé',
+}
+export const PROJECT_STATUS_ORDER: ProjectStatus[] = ['actif', 'pause', 'termine', 'aborted']
+
+export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
+  dev: 'Développement',
+  video: 'Vidéo',
+}
+export const PROJECT_TYPE_ORDER: ProjectType[] = ['dev', 'video']
+
+export const TASK_STATUS_ORDER: TaskStatus[] = ['a_faire', 'en_cours', 'fait']
+export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  a_faire: 'À faire',
+  en_cours: 'En cours',
+  fait: 'Fait',
+}
+
+export const CHK_TYPE_LABEL: Record<ChecklistType, string> = {
+  generique: 'Générique',
+  materiel: 'Achat',
+  projet: 'Projet requis',
+  evenement: 'Événement',
+}
+
+export const CHK_GROUP_LABEL: Record<ChecklistType, string> = {
+  materiel: 'Achats',
+  evenement: 'Événements',
+  projet: 'Projets requis',
+  generique: 'Autres',
+}
+
+// Status pipeline differs by element type: a purchase isn't "à faire/fait",
+// it's "à acheter/commandé/acheté", an event is "à venir/fait/annulé", etc.
+export const CHK_STATUS_BY_TYPE: Record<ChecklistType, ChecklistStatus[]> = {
+  generique: ['a_faire', 'en_cours', 'fait', 'bloque'],
+  materiel: ['a_acheter', 'commande', 'achete'],
+  evenement: ['a_venir', 'fait', 'annule'],
+  projet: ['en_attente', 'pret', 'bloque'],
+}
+
+export const CHK_STATUS_LABEL: Record<ChecklistStatus, string> = {
+  a_faire: 'À faire',
+  en_cours: 'En cours',
+  fait: 'Fait',
+  bloque: 'Bloqué',
+  a_acheter: 'À acheter',
+  commande: 'Commandé',
+  achete: 'Acheté',
+  a_venir: 'À venir',
+  annule: 'Annulé',
+  en_attente: 'En attente',
+  pret: 'Prêt',
+}
+
+export function defaultChecklistStatus(type: ChecklistType): ChecklistStatus {
+  return CHK_STATUS_BY_TYPE[type][0]
+}
+
+export function nextChecklistStatus(item: Pick<ChecklistItem, 'type' | 'status'>): ChecklistStatus {
+  const order = CHK_STATUS_BY_TYPE[item.type]
+  const idx = order.indexOf(item.status)
+  return order[(idx + 1) % order.length]
+}
+
+export type StatusTone = 'success' | 'warning' | 'danger' | 'neutral'
+
+export function statusTone(status: string): StatusTone {
+  if (
+    status === 'actif' ||
+    status === 'fait' ||
+    status === 'a_venir' ||
+    status === 'achete' ||
+    status === 'pret'
+  )
+    return 'success'
+  if (
+    status === 'pause' ||
+    status === 'en_cours' ||
+    status === 'bloque' ||
+    status === 'commande' ||
+    status === 'en_attente'
+  )
+    return 'warning'
+  if (status === 'depasse' || status === 'annule' || status === 'aborted') return 'danger'
+  return 'neutral'
+}

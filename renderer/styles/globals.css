@@ -1,0 +1,151 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: var(--font-instrument-sans), system-ui, sans-serif;
+  --font-mono: var(--font-space-mono), ui-monospace, monospace;
+
+  --color-bg: var(--tracker-bg);
+  --color-surface: var(--tracker-surface);
+  --color-surface2: var(--tracker-surface2);
+  --color-surface-hover: var(--tracker-surface-hover);
+  --color-border: var(--tracker-border);
+  --color-text: var(--tracker-text);
+  --color-text-muted: var(--tracker-text-muted);
+  --color-text-faint: var(--tracker-text-faint);
+  --color-accent: var(--tracker-accent);
+  --color-accent-soft: var(--tracker-accent-soft);
+  --color-accent-text: var(--tracker-accent-text);
+  --color-danger: var(--tracker-danger);
+  --color-danger-soft: var(--tracker-danger-soft);
+  --color-success: var(--tracker-success);
+  --color-success-soft: var(--tracker-success-soft);
+  --color-warning: var(--tracker-warning);
+  --color-warning-soft: var(--tracker-warning-soft);
+  --color-overlay: var(--tracker-overlay);
+}
+
+:root {
+  --tracker-bg: oklch(97% 0.008 90);
+  --tracker-surface: oklch(99.5% 0.004 90);
+  --tracker-surface2: oklch(95% 0.008 90);
+  --tracker-surface-hover: oklch(92% 0.01 90);
+  --tracker-border: oklch(87% 0.012 90);
+  --tracker-text: oklch(24% 0.02 90);
+  --tracker-text-muted: oklch(46% 0.02 90);
+  --tracker-text-faint: oklch(60% 0.015 90);
+  --tracker-accent: oklch(62% 0.16 38);
+  --tracker-accent-soft: oklch(90% 0.07 38);
+  --tracker-accent-text: oklch(30% 0.08 38);
+  --tracker-danger: oklch(55% 0.19 25);
+  --tracker-danger-soft: oklch(90% 0.08 25);
+  --tracker-success: oklch(56% 0.13 148);
+  --tracker-success-soft: oklch(90% 0.07 148);
+  --tracker-warning: oklch(62% 0.14 85);
+  --tracker-warning-soft: oklch(92% 0.08 85);
+  --tracker-overlay: rgba(20, 15, 5, 0.4);
+}
+
+.dark {
+  --tracker-bg: oklch(20% 0.012 90);
+  --tracker-surface: oklch(24% 0.014 90);
+  --tracker-surface2: oklch(28% 0.016 90);
+  --tracker-surface-hover: oklch(31% 0.017 90);
+  --tracker-border: oklch(34% 0.016 90);
+  --tracker-text: oklch(93% 0.008 90);
+  --tracker-text-muted: oklch(68% 0.02 90);
+  --tracker-text-faint: oklch(52% 0.02 90);
+  --tracker-accent: oklch(78% 0.15 38);
+  --tracker-accent-soft: oklch(34% 0.06 38);
+  --tracker-accent-text: oklch(18% 0.02 38);
+  --tracker-danger: oklch(70% 0.17 25);
+  --tracker-danger-soft: oklch(32% 0.08 25);
+  --tracker-success: oklch(74% 0.14 148);
+  --tracker-success-soft: oklch(32% 0.06 148);
+  --tracker-warning: oklch(80% 0.13 85);
+  --tracker-warning-soft: oklch(34% 0.06 85);
+  --tracker-overlay: rgba(0, 0, 0, 0.55);
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+  }
+  * {
+    @apply border-border;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border;
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .markdown-body {
+    @apply text-[14px] leading-relaxed text-text-muted;
+  }
+  .markdown-body h1 {
+    @apply mt-6 mb-3 text-[22px] font-bold text-text first:mt-0;
+  }
+  .markdown-body h2 {
+    @apply mt-5 mb-2 text-[18px] font-bold text-text first:mt-0;
+  }
+  .markdown-body h3 {
+    @apply mt-4 mb-2 text-[15px] font-bold text-text first:mt-0;
+  }
+  .markdown-body p {
+    @apply mb-3;
+  }
+  .markdown-body ul {
+    @apply mb-3 list-disc pl-5;
+  }
+  .markdown-body ol {
+    @apply mb-3 list-decimal pl-5;
+  }
+  .markdown-body li {
+    @apply mb-1;
+  }
+  .markdown-body a {
+    @apply text-accent underline hover:opacity-80;
+  }
+  .markdown-body strong {
+    @apply font-bold text-text;
+  }
+  .markdown-body code {
+    @apply rounded bg-surface2 px-1.5 py-0.5 font-mono text-[12.5px];
+  }
+  .markdown-body pre {
+    @apply mb-3 overflow-x-auto rounded-lg bg-bg border border-border p-3;
+  }
+  .markdown-body pre code {
+    @apply bg-transparent p-0;
+  }
+  .markdown-body blockquote {
+    @apply mb-3 border-l-4 border-border pl-3 text-text-faint;
+  }
+  .markdown-body hr {
+    @apply my-4 border-border;
+  }
+  .markdown-body table {
+    @apply mb-3 w-full border-collapse text-left;
+  }
+  .markdown-body th,
+  .markdown-body td {
+    @apply border border-border px-2 py-1;
+  }
+  .markdown-body img {
+    @apply my-2 max-w-full rounded;
+  }
+}
