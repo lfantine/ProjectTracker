@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import type { ErrorEntry, ModuleType, Note, Project, ProjectModule, TaskStatus } from '../lib/types'
 import { defaultProjectLayout } from '../lib/types'
-import { reorderById, remainingInstances, uid } from '../lib/helpers'
+import { flattenTasks, reorderById, remainingInstances, uid } from '../lib/helpers'
 import { TASK_STATUS_LABEL, TASK_STATUS_ORDER } from '../lib/constants'
 import type { TaskDropPosition } from '../lib/helpers'
 import type { ModuleCatalogEntry } from '../lib/moduleCatalog'
@@ -17,7 +17,7 @@ import {
   ModuleSearchInput,
   useModuleCatalogFilter,
 } from './ModuleCatalog'
-import { Chip, GhostButton, Input, Modal, PrimaryButton, TagChip, Textarea } from './ui'
+import { GhostButton, Input, Modal, PrimaryButton, TagChip, Textarea } from './ui'
 import {
   AlertIcon,
   ArrowLeftIcon,
@@ -27,7 +27,6 @@ import {
   NoteIcon,
   PencilIcon,
   PlusIcon,
-  SparklesIcon,
   TrashIcon,
 } from './icons'
 
@@ -36,6 +35,23 @@ const TASK_VIEW_LABEL: Record<TaskViewMode, string> = {
   liste: 'Liste',
   kanban: 'Kanban',
   a_venir: 'À venir',
+}
+const STATUS_DOT: Record<TaskStatus, string> = {
+  a_faire: 'bg-text-faint',
+  en_cours: 'bg-warning',
+  fait: 'bg-success',
+}
+
+function readTaskPreferences(projectId: string): { view: TaskViewMode; statuses: TaskStatus[] } {
+  const defaults = { view: 'liste' as TaskViewMode, statuses: ['a_faire', 'en_cours'] as TaskStatus[] }
+  if (typeof window === 'undefined') return defaults
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(`tracker_task_view_${projectId}`) || '{}')
+    return {
+      view: ['liste', 'kanban', 'a_venir'].includes(saved.view) ? saved.view : defaults.view,
+      statuses: Array.isArray(saved.statuses) ? TASK_STATUS_ORDER.filter((status) => saved.statuses.includes(status)) : defaults.statuses,
+    }
+  } catch { return defaults }
 }
 
 export function ModulesColumn({
@@ -47,6 +63,7 @@ export function ModulesColumn({
   removeModule,
   updateModule,
   updateProject,
+  updateNote,
   addTask,
   addSubtask,
   cycleTaskStatus,
@@ -64,6 +81,7 @@ export function ModulesColumn({
   addModule: (projectId: string, module: ProjectModule) => void
   removeModule: (projectId: string, moduleId: string) => void
   updateModule: (projectId: string, moduleId: string, patch: Partial<ProjectModule>) => void
+  updateNote: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags' | 'raw'>>) => void
   updateProject: (projectId: string, patch: Partial<Project>) => void
   addTask: (projectId: string, name: string) => void
   addSubtask: (projectId: string, parentId: string, name: string) => void
@@ -77,19 +95,22 @@ export function ModulesColumn({
 }) {
   const router = useRouter()
   const layout = project.layout && project.layout.length > 0 ? project.layout : defaultProjectLayout()
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null)
   const [trashHover, setTrashHover] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
-  const [taskView, setTaskView] = useState<TaskViewMode>('liste')
-  const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatus[]>(['a_faire', 'en_cours'])
+  const [taskView, setTaskView] = useState<TaskViewMode>(() => readTaskPreferences(project.id).view)
+  const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatus[]>(() => readTaskPreferences(project.id).statuses)
+  useEffect(() => {
+    try { window.sessionStorage.setItem(`tracker_task_view_${project.id}`, JSON.stringify({ view: taskView, statuses: taskStatusFilter })) } catch {}
+  }, [project.id, taskView, taskStatusFilter])
   const [stackEditing, setStackEditing] = useState(false)
   const [deadlinesEditing, setDeadlinesEditing] = useState(false)
   const [imageEditing, setImageEditing] = useState<Record<string, boolean>>({})
 
   function isImageEditing(mod: ProjectModule) {
     if (mod.id in imageEditing) return imageEditing[mod.id]
-    // a freshly created block (no content yet) opens straight into edit mode
     return !mod.imageUrl && !mod.title && !mod.text
   }
 
@@ -119,34 +140,63 @@ export function ModulesColumn({
         )
       case 'tasks':
         return (
-          <div>
-            <ModuleHeader title="Tâches" {...drag} />
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-3.5">
-              <div className="flex gap-1.5">
-                {(['liste', 'kanban', 'a_venir'] as TaskViewMode[]).map((v) => (
-                  <Chip
-                    key={v}
-                    label={TASK_VIEW_LABEL[v]}
-                    active={taskView === v}
-                    onClick={() => setTaskView(v)}
-                  />
-                ))}
-              </div>
-              <div className="flex gap-1.5">
-                {TASK_STATUS_ORDER.map((s) => (
-                  <Chip
-                    key={s}
-                    label={TASK_STATUS_LABEL[s]}
-                    active={taskStatusFilter.includes(s)}
-                    onClick={() =>
-                      setTaskStatusFilter((prev) =>
-                        prev.includes(s) ? prev.filter((x) => x !== s) : prev.concat([s])
-                      )
-                    }
-                  />
-                ))}
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <ModuleHeader title="Tâches" {...drag} />
+              <div className="flex items-center gap-2">
+                <div className="flex bg-surface2 p-1 rounded-lg border border-border">
+                  {(['liste', 'kanban', 'a_venir'] as TaskViewMode[]).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setTaskView(v)}
+                      className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all ${
+                        taskView === v ? 'bg-surface text-text shadow-sm' : 'text-text-muted hover:text-text'
+                      }`}
+                    >
+                      {TASK_VIEW_LABEL[v]}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap mb-4" role="group" aria-label="Filtrer par statut">
+              {TASK_STATUS_ORDER.map((s) => {
+                const active = taskStatusFilter.includes(s)
+                const count = flattenTasks(project.tasks).filter(({ node }) => node.status === s).length
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() =>
+                      setTaskStatusFilter((prev) =>
+                        prev.includes(s) ? prev.filter((x) => x !== s) : TASK_STATUS_ORDER.filter((x) => x === s || prev.includes(x))
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-full border text-[12px] font-semibold cursor-pointer transition-colors ${
+                      active
+                        ? 'border-border bg-surface2 text-text'
+                        : 'border-dashed border-border bg-transparent text-text-faint hover:text-text-muted'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${active ? STATUS_DOT[s] : 'bg-border'}`} />
+                    {TASK_STATUS_LABEL[s]}
+                    <span className="text-[11px] font-medium text-text-faint tabular-nums">{count}</span>
+                  </button>
+                )
+              })}
+              {taskStatusFilter.length < TASK_STATUS_ORDER.length && (
+                <button
+                  type="button"
+                  onClick={() => setTaskStatusFilter(TASK_STATUS_ORDER)}
+                  className="text-[11.5px] font-medium text-text-faint hover:text-accent bg-transparent border-none cursor-pointer px-1.5"
+                >
+                  Tout afficher
+                </button>
+              )}
+            </div>
+
             {taskView === 'liste' && (
               <TaskTree
                 tasks={project.tasks}
@@ -168,10 +218,15 @@ export function ModulesColumn({
               />
             )}
             {taskView === 'a_venir' && (
-              <div className="bg-accent-soft border border-accent rounded-lg p-4 flex items-center gap-2.5">
-                <SparklesIcon size={16} className="text-accent-text flex-shrink-0" />
-                <p className="text-[13px] text-accent-text">Ce mode d&apos;affichage arrive bientôt.</p>
-              </div>
+              <TaskTree
+                tasks={[...project.tasks].sort((a, b) => Number(b.status === 'en_cours') - Number(a.status === 'en_cours'))}
+                visibleStatuses={['en_cours', 'a_faire'].filter((status) => taskStatusFilter.includes(status as TaskStatus)) as TaskStatus[]}
+                onAddTop={(name) => addTask(project.id, name)}
+                onAddSub={(id, name) => addSubtask(project.id, id, name)}
+                onCycleStatus={(id) => cycleTaskStatus(project.id, id)}
+                onRemove={(id) => removeTask(project.id, id)}
+                onOpenDetail={onOpenTask}
+              />
             )}
           </div>
         )
@@ -197,12 +252,18 @@ export function ModulesColumn({
           <div>
             <ModuleHeader
               title={note ? note.title || 'Sans titre' : 'Note introuvable'}
+              right={note ? <EditToggle active={editingNoteId === note.id} onClick={() => setEditingNoteId(editingNoteId === note.id ? null : note.id)} /> : undefined}
               icon={<NoteIcon size={15} className="text-text-faint flex-shrink-0" />}
               onRemove={() => removeModule(project.id, mod.id)}
               {...drag}
             />
             {note ? (
               <>
+                {editingNoteId === note.id && <div className="flex flex-col gap-3 mb-3">
+                  <Input aria-label="Titre de la note" value={note.title} onChange={(e) => updateNote(note.id, { title: e.target.value })} />
+                  <Textarea aria-label="Contenu de la note" value={note.content} onChange={(e) => updateNote(note.id, { content: e.target.value })} className="min-h-64 w-full" />
+                  <p className="text-xs text-text-faint">Modifications enregistrées automatiquement.</p>
+                </div>}
                 {note.tags.length > 0 && (
                   <div className="flex gap-1.5 flex-wrap mb-2">
                     {note.tags.map((t) => (
@@ -210,7 +271,7 @@ export function ModulesColumn({
                     ))}
                   </div>
                 )}
-                <div className="text-sm text-text-muted max-h-[374px] overflow-auto">
+                <div className={`text-sm text-text-muted max-h-[374px] overflow-auto ${editingNoteId === note.id ? 'hidden' : ''}`}>
                   {note.content.trim() ? (
                     note.raw ? (
                       <pre className="whitespace-pre-wrap font-mono text-[12.5px] text-text leading-relaxed">
@@ -305,7 +366,7 @@ export function ModulesColumn({
                 const rect = e.currentTarget.getBoundingClientRect()
                 const position: 'before' | 'after' = e.clientY - rect.top < rect.height / 2 ? 'before' : 'after'
                 setDropTarget((prev) =>
-                  prev && prev.id === mod.id && prev.position === position ? prev : { id: mod.id, position }
+                  prev && prev.id === mod.id && prev.position === 'before' ? prev : { id: mod.id, position }
                 )
               }}
               onDrop={(e) => {
@@ -471,16 +532,16 @@ function StackEditor({
       {editing && (
         <div className="flex gap-2">
           <Input
-            value={tag}
-            onChange={(e) => setTag(e.target.value)}
-            placeholder="Ajouter une techno…"
-            className="flex-1"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && tag.trim()) {
-                onChange(stack.concat([tag.trim()]))
-                setTag('')
-              }
-            }}
+          value={tag}
+          onChange={(e) => setTag(e.target.value)}
+          placeholder="Ajouter une techno…"
+          className="flex-1"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && tag.trim()) {
+              onChange(stack.concat([tag.trim()]))
+              setTag('')
+            }
+          }}
           />
           <PrimaryButton
             onClick={() => {
@@ -616,8 +677,7 @@ function AddModuleModal({
         <ModuleSearchInput
           value={pickerQuery}
           onChange={setPickerQuery}
-          placeholder={pickerType === 'note' ? 'Rechercher une note…' : 'Rechercher une erreur…'}
-          autoFocus
+          placeholder={pickerType === 'note' ? 'Rechercher une note…' : 'Rechercher une erreur…' }
         />
         <div className="flex flex-col mt-3 max-h-[420px] overflow-auto">
           {filteredItems.length === 0 && (
@@ -662,3 +722,4 @@ function AddModuleModal({
     </Modal>
   )
 }
+

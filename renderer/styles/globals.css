@@ -17,6 +17,7 @@
   --color-accent: var(--tracker-accent);
   --color-accent-soft: var(--tracker-accent-soft);
   --color-accent-text: var(--tracker-accent-text);
+  --color-accent-soft-text: var(--tracker-accent-soft-text);
   --color-danger: var(--tracker-danger);
   --color-danger-soft: var(--tracker-danger-soft);
   --color-success: var(--tracker-success);
@@ -27,45 +28,57 @@
 }
 
 :root {
-  --tracker-bg: oklch(97% 0.008 90);
-  --tracker-surface: oklch(99.5% 0.004 90);
-  --tracker-surface2: oklch(95% 0.008 90);
-  --tracker-surface-hover: oklch(92% 0.01 90);
-  --tracker-border: oklch(87% 0.012 90);
-  --tracker-text: oklch(24% 0.02 90);
-  --tracker-text-muted: oklch(46% 0.02 90);
-  --tracker-text-faint: oklch(60% 0.015 90);
-  --tracker-accent: oklch(62% 0.16 38);
-  --tracker-accent-soft: oklch(90% 0.07 38);
-  --tracker-accent-text: oklch(30% 0.08 38);
-  --tracker-danger: oklch(55% 0.19 25);
-  --tracker-danger-soft: oklch(90% 0.08 25);
-  --tracker-success: oklch(56% 0.13 148);
-  --tracker-success-soft: oklch(90% 0.07 148);
-  --tracker-warning: oklch(62% 0.14 85);
-  --tracker-warning-soft: oklch(92% 0.08 85);
-  --tracker-overlay: rgba(20, 15, 5, 0.4);
+  /* Neutral light palette - Pure whites and cold grays */
+  --tracker-bg: oklch(98% 0 0);
+  --tracker-surface: oklch(100% 0 0);
+  --tracker-surface2: oklch(96% 0 0);
+  --tracker-surface-hover: oklch(93% 0 0);
+  --tracker-border: oklch(88% 0 0);
+  
+  --tracker-text: oklch(20% 0 0);
+  --tracker-text-muted: oklch(45% 0 0);
+  --tracker-text-faint: oklch(60% 0 0);
+  
+  /* Red-Orange Accent - Vibrant and Modern */
+  --tracker-accent: oklch(60% 0.22 30);
+  --tracker-accent-soft: oklch(94% 0.06 30);
+  --tracker-accent-text: oklch(20% 0.08 30);
+  --tracker-accent-soft-text: oklch(20% 0.08 30);
+  
+  --tracker-danger: oklch(60% 0.18 25);
+  --tracker-danger-soft: oklch(95% 0.05 25);
+  --tracker-success: oklch(65% 0.15 150);
+  --tracker-success-soft: oklch(95% 0.05 150);
+  --tracker-warning: oklch(75% 0.15 85);
+  --tracker-warning-soft: oklch(95% 0.05 85);
+  --tracker-overlay: rgba(0, 0, 0, 0.3);
 }
 
 .dark {
-  --tracker-bg: oklch(20% 0.012 90);
-  --tracker-surface: oklch(24% 0.014 90);
-  --tracker-surface2: oklch(28% 0.016 90);
-  --tracker-surface-hover: oklch(31% 0.017 90);
-  --tracker-border: oklch(34% 0.016 90);
-  --tracker-text: oklch(93% 0.008 90);
-  --tracker-text-muted: oklch(68% 0.02 90);
-  --tracker-text-faint: oklch(52% 0.02 90);
-  --tracker-accent: oklch(78% 0.15 38);
-  --tracker-accent-soft: oklch(34% 0.06 38);
-  --tracker-accent-text: oklch(18% 0.02 38);
-  --tracker-danger: oklch(70% 0.17 25);
-  --tracker-danger-soft: oklch(32% 0.08 25);
-  --tracker-success: oklch(74% 0.14 148);
-  --tracker-success-soft: oklch(32% 0.06 148);
-  --tracker-warning: oklch(80% 0.13 85);
-  --tracker-warning-soft: oklch(34% 0.06 85);
-  --tracker-overlay: rgba(0, 0, 0, 0.55);
+  /* Deep slate dark palette */
+  --tracker-bg: oklch(15% 0.01 260);
+  --tracker-surface: oklch(18% 0.01 260);
+  --tracker-surface2: oklch(22% 0.01 260);
+  --tracker-surface-hover: oklch(26% 0.01 260);
+  --tracker-border: oklch(30% 0.01 260);
+  
+  --tracker-text: oklch(95% 0 0);
+  --tracker-text-muted: oklch(75% 0 0);
+  --tracker-text-faint: oklch(55% 0 0);
+  
+  /* Bright Red-Orange Accent for Dark Mode */
+  --tracker-accent: oklch(70% 0.20 30);
+  --tracker-accent-soft: oklch(25% 0.10 30);
+  --tracker-accent-text: oklch(10% 0.02 30);
+  --tracker-accent-soft-text: oklch(85% 0.12 30);
+  
+  --tracker-danger: oklch(65% 0.18 25);
+  --tracker-danger-soft: oklch(25% 0.08 25);
+  --tracker-success: oklch(75% 0.15 150);
+  --tracker-success-soft: oklch(25% 0.08 150);
+  --tracker-warning: oklch(85% 0.15 85);
+  --tracker-warning-soft: oklch(25% 0.08 85);
+  --tracker-overlay: rgba(0, 0, 0, 0.6);
 }
 
 @layer base {

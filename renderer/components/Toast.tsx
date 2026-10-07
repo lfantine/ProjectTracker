@@ -1,15 +1,18 @@
 import React, { createContext, useCallback, useContext, useState } from 'react'
 
+type ToastAction = { label: string; onClick: () => void }
+
 type ToastTone = 'default' | 'success' | 'danger'
 
 interface ToastItem {
   id: number
   message: string
   tone: ToastTone
+  action?: ToastAction
 }
 
 interface ToastContextValue {
-  showToast: (message: string, tone?: ToastTone) => void
+  showToast: (message: string, tone?: ToastTone, action?: ToastAction) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -25,12 +28,12 @@ let nextToastId = 1
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
-  const showToast = useCallback((message: string, tone: ToastTone = 'default') => {
+  const showToast = useCallback((message: string, tone: ToastTone = 'default', action?: ToastAction) => {
     const id = nextToastId++
-    setToasts((prev) => prev.concat([{ id, message, tone }]))
+    setToasts((prev) => prev.concat([{ id, message, tone, action }]))
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 3200)
+    }, action ? 8000 : 3200)
   }, [])
 
   return (
@@ -43,6 +46,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             className={`pointer-events-auto max-w-xs px-4 py-2.5 rounded-lg border shadow-lg text-[13px] font-semibold ${TONE_CLASSES[t.tone]}`}
           >
             {t.message}
+            {t.action && <button type="button" className="ml-3 underline cursor-pointer font-bold" onClick={() => { t.action?.onClick(); setToasts((items) => items.filter((item) => item.id !== t.id)) }}>{t.action.label}</button>}
           </div>
         ))}
       </div>

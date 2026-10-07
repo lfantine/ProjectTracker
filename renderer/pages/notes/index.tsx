@@ -1,8 +1,9 @@
 import { useMemo, useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/router'
 import { AppShell } from '../../components/AppShell'
-import { Card, Chip, Input, PrimaryButton, TagChip } from '../../components/ui'
+import { Card, Chip, Input, PrimaryButton, SecondaryButton, TagChip } from '../../components/ui'
 import { FolderIcon, PlusIcon, TrashIcon } from '../../components/icons'
+import { useToast } from '../../components/Toast'
 import { useData } from '../../lib/store'
 import { fmtDate, timeAgo } from '../../lib/helpers'
 import type { Note, Project } from '../../lib/types'
@@ -11,8 +12,10 @@ type SortMode = 'date' | 'projet'
 const SORT_LABEL: Record<SortMode, string> = { date: 'Plus récentes', projet: 'Par projet' }
 
 export default function NotesPage() {
-  const { data, loading, addNote, removeNote } = useData()
+  const { data, loading, addNote, removeNote, restoreNote } = useData()
   const router = useRouter()
+  const { showToast } = useToast()
+  const [showTrash, setShowTrash] = useState(false)
   const [search, setSearch] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>('date')
 
@@ -51,13 +54,29 @@ export default function NotesPage() {
     router.push(`/notes/detail?id=${note.id}`)
   }
 
-  function handleDelete(e: MouseEvent, id: string, title: string) {
+  function handleDelete(e: MouseEvent, id: string) {
     e.stopPropagation()
-    if (window.confirm(`Supprimer « ${title} » ?`)) removeNote(id)
+    removeNote(id)
+    showToast('Note déplacée dans la corbeille.', 'default', { label: 'Annuler', onClick: () => restoreNote(id) })
   }
 
   return (
     <AppShell title="Notes">
+      <div className="flex gap-2 mb-4">
+        <Chip label="Notes" active={!showTrash} onClick={() => setShowTrash(false)} />
+        <Chip label={`Corbeille (${data.trashedNotes?.length || 0})`} active={showTrash} onClick={() => setShowTrash(true)} />
+      </div>
+      {showTrash ? <div className="flex flex-col gap-3">
+        <p className="text-sm text-text-muted">Les notes restent récupérables ici, avec leur contenu et leurs liens aux projets.</p>
+        {!data.trashedNotes?.length && <p className="text-sm text-text-faint">La corbeille est vide.</p>}
+        {[...(data.trashedNotes || [])].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt)).map((entry) => <Card key={entry.note.id}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0"><p className="font-semibold truncate">{entry.note.title || 'Sans titre'}</p><p className="text-xs text-text-faint">Supprimée {timeAgo(entry.deletedAt)}</p></div>
+            <SecondaryButton onClick={() => { restoreNote(entry.note.id); showToast('Note restaurée avec ses liens.', 'success') }}>Restaurer</SecondaryButton>
+          </div>
+          <p className="text-sm text-text-muted whitespace-pre-wrap line-clamp-3">{entry.note.content || 'Page vide.'}</p>
+        </Card>)}
+      </div> : <>
       <div className="flex items-center justify-between mb-3.5 gap-3 flex-wrap">
         <Input
           value={search}
@@ -95,10 +114,11 @@ export default function NotesPage() {
             projects={projects}
             onOpen={() => router.push(`/notes/detail?id=${n.id}`)}
             onOpenProject={(pid) => router.push(`/project?id=${pid}`)}
-            onDelete={(e) => handleDelete(e, n.id, n.title || 'Sans titre')}
+            onDelete={(e) => handleDelete(e, n.id)}
           />
         ))}
       </div>
+      </>}
     </AppShell>
   )
 }
@@ -123,6 +143,8 @@ function NoteCard({
         <button
           type="button"
           onClick={onDelete}
+          aria-label={`Mettre ${n.title || 'Sans titre'} dans la corbeille`}
+          title="Mettre dans la corbeille"
           className="shrink-0 border-none bg-transparent text-text-faint opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
         >
           <TrashIcon size={13} />
@@ -138,7 +160,7 @@ function NoteCard({
                 e.stopPropagation()
                 onOpenProject(p.id)
               }}
-              className="inline-flex items-center gap-1 text-[10.5px] font-semibold bg-accent-soft text-accent-text px-1.5 py-0.5 rounded cursor-pointer border-none hover:brightness-105 transition"
+              className="inline-flex items-center gap-1 text-[10.5px] font-semibold bg-accent-soft text-accent-soft-text px-1.5 py-0.5 rounded cursor-pointer border-none hover:brightness-105 transition"
             >
               <FolderIcon size={10} /> {p.name}
             </button>

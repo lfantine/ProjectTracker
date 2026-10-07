@@ -119,7 +119,7 @@ export default function SearchPage() {
             type="button"
             onClick={() => setTag((prev) => (prev === t ? null : t))}
             className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-full border ${
-              tag === t ? 'border-accent bg-accent-soft text-accent-text' : 'border-border bg-transparent text-text-muted'
+              tag === t ? 'border-accent bg-accent-soft text-accent-soft-text' : 'border-border bg-transparent text-text-muted'
             }`}
           >
             {t}

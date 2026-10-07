@@ -14,7 +14,7 @@ export default function NoteDetailPage() {
   const router = useRouter()
   const id = typeof router.query.id === 'string' ? router.query.id : undefined
   const fromProjectId = typeof router.query.projectId === 'string' ? router.query.projectId : undefined
-  const { data, findNote, updateNote, removeNote } = useData()
+  const { data, findNote, updateNote, removeNote, restoreNote } = useData()
   const { showToast } = useToast()
 
   const note = id ? findNote(id) : undefined
@@ -61,8 +61,8 @@ export default function NoteDetailPage() {
 
   function handleDelete() {
     if (!id || !note) return
-    if (!window.confirm(`Supprimer « ${note.title || 'Sans titre'} » ?`)) return
     removeNote(id)
+    showToast('Note déplacée dans la corbeille.', 'default', { label: 'Annuler', onClick: () => restoreNote(id) })
     router.push(fromProjectId ? `/project?id=${fromProjectId}` : '/notes')
   }
 
@@ -154,7 +154,7 @@ export default function NoteDetailPage() {
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 border border-accent bg-accent-soft text-accent-text font-bold text-[12.5px] px-3 py-1.5 rounded-lg cursor-pointer"
+                className="flex items-center gap-1.5 border border-accent bg-accent-soft text-accent-soft-text font-bold text-[12.5px] px-3 py-1.5 rounded-lg cursor-pointer"
               >
                 <SparklesIcon size={13} /> Éditer avec l&apos;IA
               </button>

@@ -1,3 +1,5 @@
+import { syncTaskStatuses } from './taskStatus'
+
 export type ProjectStatus = 'actif' | 'pause' | 'termine' | 'aborted'
 export type ProjectType = 'dev' | 'video'
 export type FolderKind = 'manual' | 'smart'
@@ -122,6 +124,12 @@ export interface ErrorEntry {
   projectIds: string[]
 }
 
+export interface TrashedNote {
+  note: Note
+  deletedAt: string
+  links: { projectId: string; modules: ProjectModule[] }[]
+}
+
 export interface AppData {
   categories: string[]
   platforms: Record<ProjectType, string[]>
@@ -129,6 +137,7 @@ export interface AppData {
   projects: Project[]
   notes: Note[]
   errors: ErrorEntry[]
+  trashedNotes?: TrashedNote[]
 }
 
 const DEFAULT_PLATFORMS: Record<ProjectType, string[]> = {
@@ -144,6 +153,7 @@ export function emptyAppData(): AppData {
     projects: [],
     notes: [],
     errors: [],
+    trashedNotes: [],
   }
 }
 
@@ -167,8 +177,10 @@ export function normalizeAppData(raw: unknown): AppData {
       ...p,
       type: p.type ?? 'dev',
       tags: p.tags ?? [],
+      tasks: syncTaskStatuses(p.tasks),
     })),
     notes: data.notes ?? [],
     errors: data.errors ?? [],
+    trashedNotes: data.trashedNotes ?? [],
   }
 }

@@ -1,3 +1,5 @@
+import { useRouter } from 'next/router'
+import { ProjectTabs } from '../components/ProjectTabs'
 import type { AppProps } from 'next/app'
 import { Instrument_Sans, Space_Mono } from 'next/font/google'
 
@@ -21,6 +23,8 @@ const spaceMono = Space_Mono({
 })
 
 function MyApp({ Component, pageProps }: AppProps) {
+  const router = useRouter()
+  const pageKey = router.pathname === '/project' ? `project:${router.query.id || ''}` : router.pathname === '/notes/detail' ? `note:${router.query.id || ''}` : router.pathname
   return (
     <div className={`${instrumentSans.variable} ${spaceMono.variable} contents`}>
       <ThemeProvider>
@@ -28,7 +32,10 @@ function MyApp({ Component, pageProps }: AppProps) {
           <ToastProvider>
             <div className="flex h-screen w-full overflow-hidden bg-bg text-text">
               <SideBar />
-              <Component {...pageProps} />
+              <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+                <ProjectTabs />
+                <Component key={pageKey} {...pageProps} />
+              </div>
             </div>
           </ToastProvider>
         </DataProvider>

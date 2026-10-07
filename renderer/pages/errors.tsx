@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { AppShell } from '../components/AppShell'
 import {
@@ -14,18 +14,24 @@ import {
 } from '../components/ui'
 import { PlusIcon, SparklesIcon, TrashIcon } from '../components/icons'
 import { useData } from '../lib/store'
+import { Markdown } from '../components/Markdown'
+import { parseAiErrorDraft, requestAiJson } from '../lib/aiCreation'
 import { daysAgo, timeAgo } from '../lib/helpers'
 
 type DateFilter = '7' | '30' | 'older' | null
 
 export default function ErrorsPage() {
-  const { data, loading, addError, updateError, removeError } = useData()
+  const { data, loading, addError, updateError, removeError, linkError, unlinkError } = useData()
   const router = useRouter()
 
   const [filterProjectIds, setFilterProjectIds] = useState<string[]>([])
   const [filterUnlinked, setFilterUnlinked] = useState(false)
   const [filterDate, setFilterDate] = useState<DateFilter>(null)
 
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const aiRequest = useRef(0)
   const [viewId, setViewId] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -66,7 +72,39 @@ export default function ErrorsPage() {
 
   const viewError = viewId ? data.errors.find((e) => e.id === viewId) : null
 
+  function closeEditor() {
+    aiRequest.current += 1
+    setAiLoading(false)
+    setEditorOpen(false)
+  }
+
+  async function generateError() {
+    if (!aiPrompt.trim() || aiLoading) return
+    const requestId = ++aiRequest.current
+    setAiLoading(true)
+    setAiError('')
+    try {
+      const draft = await requestAiJson(
+        ['Rédige une fiche erreur à partir de la demande. Réponds uniquement en JSON avec title, content, causes, solution (chaînes de caractères en Markdown). Distingue les causes possibles des faits établis, ne prétends pas avoir testé la solution. Ne répète pas le titre dans le contenu.',
+          `Demande : ${aiPrompt}`, `Fiche actuelle : ${JSON.stringify({ title, content, causes, solution })}`].join('\n'),
+        (request) => window.api.ai.call(request),
+        parseAiErrorDraft, () => {},
+      )
+      if (aiRequest.current !== requestId) return
+      setTitle(draft.title); setContent(draft.content); setCauses(draft.causes); setSolution(draft.solution)
+      setTab('manuel')
+    } catch (reason) {
+      if (aiRequest.current === requestId) setAiError(reason instanceof Error ? reason.message : 'La génération a échoué.')
+    } finally {
+      if (aiRequest.current === requestId) setAiLoading(false)
+    }
+  }
+
   function openNew(projectIds: string[] = []) {
+    aiRequest.current += 1
+    setAiPrompt('')
+    setAiError('')
+    setAiLoading(false)
     setEditingId(null)
     setTab('manuel')
     setTitle('')
@@ -78,6 +116,10 @@ export default function ErrorsPage() {
   }
 
   function openEdit(e: NonNullable<typeof viewError>) {
+    aiRequest.current += 1
+    setAiLoading(false)
+    setAiPrompt('')
+    setAiError('')
     setEditingId(e.id)
     setTab('manuel')
     setTitle(e.title)
@@ -93,10 +135,13 @@ export default function ErrorsPage() {
     if (!title.trim()) return
     if (editingId) {
       updateError(editingId, { title: title.trim(), content, causes, solution })
+      const previous = data.errors.find((error) => error.id === editingId)?.projectIds || []
+      for (const id of linkedProjectIds) if (!previous.includes(id)) linkError(id, editingId)
+      for (const id of previous) if (!linkedProjectIds.includes(id)) unlinkError(id, editingId)
     } else {
       addError({ title: title.trim(), content, causes, solution, projectIds: linkedProjectIds })
     }
-    setEditorOpen(false)
+    closeEditor()
   }
 
   return (
@@ -204,11 +249,11 @@ export default function ErrorsPage() {
               })}
             </div>
             <FieldLabel>Description</FieldLabel>
-            <p className="text-[13.5px] text-text leading-relaxed">{viewError.content}</p>
+            <Markdown text={viewError.content} />
             <FieldLabel>Cause</FieldLabel>
-            <p className="text-[13.5px] text-text leading-relaxed">{viewError.causes}</p>
+            <Markdown text={viewError.causes} />
             <FieldLabel>Solution</FieldLabel>
-            <p className="text-[13.5px] text-text leading-relaxed">{viewError.solution}</p>
+            <Markdown text={viewError.solution} />
             <div className="flex gap-2 mt-4">
               <SecondaryButton onClick={() => openEdit(viewError)}>Modifier</SecondaryButton>
               <button
@@ -230,21 +275,20 @@ export default function ErrorsPage() {
 
       <Modal
         open={editorOpen}
-        onClose={() => setEditorOpen(false)}
+        onClose={closeEditor}
         title={editingId ? "Modifier l'erreur" : 'Nouvelle erreur'}
         width={560}
       >
         <div className="flex gap-2 mb-3">
-          <Chip label="Manuel" active={tab === 'manuel'} onClick={() => setTab('manuel')} />
+          <Chip label="Manuel" active={tab === 'manuel'} onClick={() => { aiRequest.current += 1; setAiLoading(false); setTab('manuel') }} />
           <Chip label="✨ IA" active={tab === 'ia'} onClick={() => setTab('ia')} />
         </div>
         {tab === 'ia' ? (
-          <div className="bg-accent-soft border border-accent rounded-lg p-4 flex items-center gap-2.5">
-            <SparklesIcon size={16} className="text-accent-text flex-shrink-0" />
-            <p className="text-[13px] text-accent-text">
-              La génération assistée par IA arrive bientôt. Utilise l&apos;onglet Manuel pour
-              l&apos;instant.
-            </p>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-text-muted">Décris le problème ou colle les logs. L’IA prépare les détails ; tu peux les modifier avant d’enregistrer.</p>
+            <Textarea aria-label="Demande à l’IA" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Contexte, comportement attendu, message d’erreur…" className="w-full min-h-48" disabled={aiLoading} />
+            {aiError && <p role="alert" className="text-sm text-danger">{aiError}</p>}
+            <PrimaryButton onClick={generateError} disabled={aiLoading || !aiPrompt.trim()}><span className="flex items-center gap-2"><SparklesIcon size={16} />{aiLoading ? 'Génération…' : 'Préparer la fiche erreur'}</span></PrimaryButton>
           </div>
         ) : (
           <>
@@ -272,7 +316,7 @@ export default function ErrorsPage() {
               ))}
             </div>
             <div className="flex justify-end mt-4">
-              <PrimaryButton onClick={save}>Enregistrer</PrimaryButton>
+              <PrimaryButton onClick={save} disabled={!title.trim()}>Enregistrer</PrimaryButton>
             </div>
           </>
         )}
@@ -296,7 +340,7 @@ function FilterRow({ label, active, onClick }: { label: string; active: boolean;
       type="button"
       onClick={onClick}
       className={`text-left text-[12.5px] font-semibold px-2.5 py-1.5 rounded-md border cursor-pointer ${
-        active ? 'border-accent bg-accent-soft text-accent-text' : 'border-border bg-transparent text-text'
+        active ? 'border-accent bg-accent-soft text-accent-soft-text' : 'border-border bg-transparent text-text'
       }`}
     >
       {label}

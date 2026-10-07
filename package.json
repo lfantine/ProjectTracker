@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "nextron",
     "build": "nextron build",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test": "node tests/ai-requests.cjs && node tests/task-content.cjs && node tests/task-status.cjs && node tests/note-deletion.cjs && node tests/workspace-flow.cjs && node tests/task-dialog-identity.cjs",
+    "typecheck": "node tests/typecheck.cjs"
   },
   "dependencies": {
     "electron-serve": "^3.0.0",

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useId, useRef } from 'react'
 import type { StatusTone } from '../lib/constants'
 import { XIcon } from './icons'
 
@@ -71,7 +71,7 @@ export function Chip({
       onClick={onClick}
       className={`text-[13px] font-semibold px-3.5 py-2 rounded-lg border transition-colors ${
         active
-          ? 'border-accent bg-accent-soft text-accent-text'
+          ? 'border-accent bg-accent-soft text-accent-soft-text'
           : 'border-border bg-transparent text-text hover:bg-surface-hover'
       } ${className}`}
     >
@@ -117,16 +117,19 @@ export function SecondaryButton({
   onClick,
   children,
   className = '',
+  disabled,
 }: {
   onClick?: () => void
   children: React.ReactNode
   className?: string
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
-      className={`border border-border bg-transparent text-text-muted font-semibold text-[13.5px] px-4 py-2 rounded-lg cursor-pointer hover:bg-surface-hover transition ${className}`}
+      className={`border border-border bg-transparent text-text-muted font-semibold text-[13.5px] px-4 py-2 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface-hover transition ${className}`}
     >
       {children}
     </button>
@@ -218,6 +221,8 @@ export function Modal({
   children,
   width = 560,
   center = false,
+  compact = false,
+  allowProjectSwitch = false,
 }: {
   open: boolean
   onClose: () => void
@@ -225,7 +230,29 @@ export function Modal({
   children: React.ReactNode
   width?: number
   center?: boolean
+  compact?: boolean
+  allowProjectSwitch?: boolean
 }) {
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const previous = document.activeElement as HTMLElement | null
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); closeRef.current() }
+      if (event.key === 'Tab') {
+        const elements = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex="0"]') || [])
+        const first = elements[0], last = elements[elements.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+      }
+    }
+    if (!dialogRef.current?.contains(document.activeElement)) dialogRef.current?.focus()
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('keydown', onKey); previous?.focus() }
+  }, [open])
   if (!open) return null
   return (
     <div
@@ -235,15 +262,18 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        style={{ width, maxHeight: center ? '86vh' : '82vh' }}
+        ref={dialogRef}
+        role="dialog" aria-modal="true" data-allow-project-switch={allowProjectSwitch || undefined} aria-labelledby={titleId} tabIndex={-1}
+        style={{ width: compact ? width : '80vw', maxWidth: 'calc(100vw - 32px)', height: compact ? undefined : '80vh', maxHeight: '80vh' }}
         onClick={(e) => e.stopPropagation()}
         className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-1 overflow-auto shadow-2xl"
       >
         <div className="flex items-center justify-between mb-1.5">
-          <h2 className="text-[16px] font-bold">{title}</h2>
+          <h2 id={titleId} className="text-[16px] font-bold">{title}</h2>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Fermer"
             className="border-none bg-transparent text-text-muted cursor-pointer flex items-center"
           >
             <XIcon size={18} />

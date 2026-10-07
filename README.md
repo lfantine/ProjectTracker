@@ -33,6 +33,15 @@ Tu choisis ce programme dans **Réglages → Intelligence artificielle** : un ch
 
 Ce projet est un outil personnel en construction. Attends-toi à des changements de structure, des bugs, et des fonctionnalités incomplètes.
 
+## Navigation, IA et récupération
+
+- Les projets ouverts restent accessibles dans la barre d’onglets. Épingle un onglet avec le losange pour empêcher sa fermeture ; désépingle-le pour le fermer. Les onglets et l’épinglage sont restaurés au redémarrage.
+- `⌘1` à `⌘9` sur Mac, ou `Ctrl+1` à `Ctrl+9`, ouvre l’onglet correspondant. La position de défilement, le mode de tâches et les filtres sont conservés entre les projets pendant la session.
+- **Créer ou modifier avec l’IA** présélectionne le projet ou la note ouverte. Après génération, utilise **Ajuster cette proposition** pour modifier le brouillon sans repartir de zéro. Tu peux annuler le dernier ajustement et comparer avec la version précédente avant de valider.
+- Une note supprimée rejoint **Notes → Corbeille**. **Annuler** permet de la récupérer immédiatement ; **Restaurer** récupère ensuite son contenu et ses liens aux projets encore présents.
+
+Pour vérifier les changements : `npm test` exécute les tests de régression, et `npm run typecheck` vérifie le code source TypeScript.
+
 ## Stack
 
 - [Electron](https://www.electronjs.org/) + [Nextron](https://github.com/saltyshiomix/nextron) — coquille bureau

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 import { CommandPalette } from './CommandPalette'
 import { CreateWithAiModal } from './CreateWithAiModal'
 import { SearchIcon, SparklesIcon } from './icons'
@@ -14,6 +15,16 @@ export function AppShell({
   title: string
   children: React.ReactNode
 }) {
+  const router = useRouter()
+  const contentRef = useRef<HTMLDivElement>(null)
+  const scrollKey = router.pathname === '/project' && typeof router.query.id === 'string' ? `tracker_scroll_${router.query.id}` : null
+  const aiTargetId = typeof router.query.id === 'string' && ['/project', '/notes/detail'].includes(router.pathname) ? router.query.id : router.pathname === '/errors' && typeof router.query.open === 'string' ? router.query.open : undefined
+  useLayoutEffect(() => {
+    const content = contentRef.current
+    if (!content || !scrollKey) return
+    try { content.scrollTop = Number(window.sessionStorage.getItem(scrollKey)) || 0 } catch {}
+    return () => { try { window.sessionStorage.setItem(scrollKey, String(content.scrollTop)) } catch {} }
+  }, [scrollKey])
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [aiModalOpen, setAiModalOpen] = useState(false)
 
@@ -30,7 +41,7 @@ export function AppShell({
   }, [])
 
   return (
-    <main className="flex-1 flex flex-col min-w-0 h-screen">
+    <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full">
       <Head>
         <title>{`${title} · Tracker`}</title>
       </Head>
@@ -40,10 +51,10 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setAiModalOpen(true)}
-            className="flex items-center gap-1.5 border border-accent bg-accent-soft text-accent-text font-bold text-[13px] px-3.5 py-2 rounded-lg cursor-pointer"
+            className="flex items-center gap-1.5 border border-accent bg-accent-soft text-accent-soft-text font-bold text-[13px] px-3.5 py-2 rounded-lg cursor-pointer"
           >
             <SparklesIcon size={14} />
-            Créer avec l&apos;IA
+            Créer ou modifier avec l&apos;IA
           </button>
           <button
             type="button"
@@ -58,11 +69,11 @@ export function AppShell({
           </button>
         </div>
       </div>
-      <div className="flex-1 overflow-auto px-8 pt-7 pb-16">{children}</div>
+      <div ref={contentRef} className="flex-1 overflow-auto px-8 pt-7 pb-16">{children}</div>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
-      <CreateWithAiModal open={aiModalOpen} onClose={() => setAiModalOpen(false)} />
+      <CreateWithAiModal initialTargetId={aiTargetId} open={aiModalOpen} onClose={() => setAiModalOpen(false)} />
     </main>
   )
 }

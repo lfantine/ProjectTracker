@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useData } from '../lib/store'
 import { Markdown } from './Markdown'
@@ -7,6 +7,8 @@ import { SparklesIcon, XIcon } from './icons'
 import {
   AI_ANALYSIS_FORMAT,
   buildAiContext,
+  mergeAiDraftChanges,
+  buildAiDraftProposal,
   requestAiJson,
   AI_EDIT_FORMAT,
   AI_NOTES_FORMAT,
@@ -196,10 +198,11 @@ function parseAiDraft(answer: string, fallbackCategory: string): AiDraft {
   throw new Error('Type non pris en charge. Utilise « note », « error » ou « project ».')
 }
 
-export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: boolean; onClose: () => void; initialTargetId?: string }) {
   const { data, addNote, addError, addProject, updateNote, updateProject, updateError, removeNote, linkNote, unlinkNote, linkError, unlinkError } = useData()
   const router = useRouter()
   const [selection, setSelection] = useState('auto')
+  useEffect(() => { if (open) setSelection(initialTargetId || 'auto') }, [open, initialTargetId])
   const [changes, setChanges] = useState<Record<string, unknown>>({})
   const [noteActions, setNoteActions] = useState<Record<string, unknown>[]>([])
   const objects = [
@@ -214,14 +217,37 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
   const [questions, setQuestions] = useState<AiCreationQuestion[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [draft, setDraft] = useState<AiDraft | null>(null)
+  const [refinement, setRefinement] = useState('')
+  const [history, setHistory] = useState<{ draft: AiDraft; changes: Record<string, unknown>; actions: Record<string, unknown>[] }[]>([])
+  const [revisionFields, setRevisionFields] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState<'analysis' | 'requirements' | 'creation' | null>(null)
+  const [step, setStep] = useState<'analysis' | 'requirements' | 'creation' | 'refinement' | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const previous = document.activeElement as HTMLElement | null
+    const dialog = dialogRef.current
+    if (dialog && !dialog.contains(document.activeElement)) dialog.focus()
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); close() }
+      if (event.key !== 'Tab') return
+      const elements = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), textarea:not(:disabled), select:not(:disabled), input:not(:disabled), a[href], summary') || []).filter((element) => element.offsetParent !== null)
+      const first = elements[0], last = elements[elements.length - 1]
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) { event.preventDefault(); last?.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('keydown', onKey); previous?.focus() }
+  }, [open])
 
   function reset() {
     requestIdRef.current += 1
+    setRefinement('')
+    setHistory([])
+    setRevisionFields([])
     setPrompt('')
     setSelection('auto')
     setChanges({})
@@ -351,23 +377,7 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
 
     try {
       const result = await callWithJson(request, (answer) => {
-        const raw = parseJson(answer)
-        if (raw.type !== currentAnalysis.type) throw new Error('Le type doit correspondre à l’analyse.')
-        const existing = objects.find((item) => item.id === currentAnalysis.targetId)?.item
-        const base = existing ? { ...existing, ...('name' in existing ? { projectType: existing.type, projectNames: [] } : {}), ...('projectIds' in existing ? { projectNames: data.projects.filter((p) => existing.projectIds.includes(p.id)).map((p) => p.name) } : {}) } : {}
-        validateChanges(raw)
-        const actions = objectList(raw.noteActions)
-        if (Array.isArray(raw.noteActions) && actions.length !== raw.noteActions.length) throw new Error('Action de note invalide.')
-        for (const action of actions) {
-          if ('projectIds' in action && (!Array.isArray(action.projectIds) || action.projectIds.some((id) => typeof id !== 'string'))) throw new Error('Liaisons de notes invalides.')
-          if (!['create', 'delete', 'link', 'unlink'].includes(String(action.action))) throw new Error('Action de note invalide.')
-          if (action.action === 'create' && !stringValue(action.title)) throw new Error('Titre de note manquant.')
-          if (action.action !== 'create' && !(action.noteId === '$self' && currentAnalysis.type === 'note') && !data.notes.some((n) => n.id === action.noteId)) throw new Error('Note introuvable.')
-          if (action.action === 'delete' && (currentAnalysis.action !== 'edit' || action.noteId === currentAnalysis.targetId || action.noteId === '$self')) throw new Error('Suppression de note non autorisée.')
-          if (stringList(action.projectIds).some((id) => !(id === '$self' && currentAnalysis.type === 'project') && !data.projects.some((p) => p.id === id))) throw new Error('Projet lié introuvable.')
-          if (actions.some((other) => other.action === 'delete' && other !== action && other.noteId === action.noteId)) throw new Error('Actions de notes contradictoires.')
-        }
-        return { draft: parseAiDraft(JSON.stringify({ ...base, ...raw }), data.categories[0] || 'Software'), raw, actions }
+        return parseProposal(answer, currentAnalysis)
       })
       if (requestIdRef.current !== requestId) return
       setDraft(result.draft)
@@ -377,6 +387,71 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
       if (requestIdRef.current !== requestId) return
       throw reason
     }
+  }
+
+  function parseProposal(answer: string, currentAnalysis: AiCreationAnalysis, previous?: Record<string, unknown>) {
+    const patch = parseJson(answer)
+    const raw = previous ? mergeAiDraftChanges(previous, patch) : patch
+    if (raw.type !== currentAnalysis.type) throw new Error('Le type doit correspondre à l’analyse.')
+    const existing = objects.find((item) => item.id === currentAnalysis.targetId)?.item
+    const base = existing ? { ...existing, ...('name' in existing ? { projectType: existing.type, projectNames: [] } : {}), ...('projectIds' in existing ? { projectNames: data.projects.filter((p) => existing.projectIds.includes(p.id)).map((p) => p.name) } : {}) } : {}
+    validateChanges(raw)
+    const actions = objectList(raw.noteActions)
+    if (Array.isArray(raw.noteActions) && actions.length !== raw.noteActions.length) throw new Error('Action de note invalide.')
+    for (const action of actions) {
+      if ('projectIds' in action && (!Array.isArray(action.projectIds) || action.projectIds.some((id) => typeof id !== 'string'))) throw new Error('Liaisons de notes invalides.')
+      if (!['create', 'delete', 'link', 'unlink'].includes(String(action.action))) throw new Error('Action de note invalide.')
+      if (action.action === 'create' && !stringValue(action.title)) throw new Error('Titre de note manquant.')
+      if (action.action !== 'create' && !(action.noteId === '$self' && currentAnalysis.type === 'note') && !data.notes.some((n) => n.id === action.noteId)) throw new Error('Note introuvable.')
+      if (action.action === 'delete' && (currentAnalysis.action !== 'edit' || action.noteId === currentAnalysis.targetId || action.noteId === '$self')) throw new Error('Suppression de note non autorisée.')
+      if (stringList(action.projectIds).some((id) => !(id === '$self' && currentAnalysis.type === 'project') && !data.projects.some((p) => p.id === id))) throw new Error('Projet lié introuvable.')
+      if (actions.some((other) => other.action === 'delete' && other !== action && other.noteId === action.noteId)) throw new Error('Actions de notes contradictoires.')
+    }
+    return { draft: parseAiDraft(JSON.stringify({ ...base, ...raw }), data.categories[0] || 'Software'), raw, actions, fields: Object.keys(patch).filter((key) => key !== 'type' && JSON.stringify(patch[key]) !== JSON.stringify(previous?.[key])) }
+  }
+
+  async function refineDraft(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!draft || !analysis || !refinement.trim() || loading) return
+    const snapshot = { draft, changes, actions: noteActions }
+    const requestId = ++requestIdRef.current
+    setLoading(true)
+    setStep('refinement')
+    setError(null)
+    const request = [
+      'Modifie uniquement le brouillon ci-dessous selon cette nouvelle demande. Ne repars pas de zéro. Réponds en JSON avec type et seulement les champs modifiés. Conserve tous les détails non concernés, les IDs et les statuts existants.',
+      AI_CREATION_FORMAT, AI_EDIT_FORMAT, AI_NOTES_FORMAT,
+      'Pour un tableau modifié, renvoie le tableau complet avec les entrées conservées et toutes leurs métadonnées. noteActions représente la liste complète des actions proposées, pas des actions supplémentaires. Ne supprime une entrée que si la demande le justifie.',
+      `Brouillon actuel : ${JSON.stringify({ ...buildAiDraftProposal({ ...draft }, changes, target ? { ...target.item } : undefined), noteActions })}`,
+      `Contexte : ${buildAiContext(data, analysis)}`,
+      `Demande initiale : ${prompt}`,
+      `Nouvelle demande : ${refinement.trim()}`,
+    ].join('\n')
+    try {
+      const result = await callWithJson(request, (answer) => parseProposal(answer, analysis, changes))
+      if (requestIdRef.current !== requestId) return
+      setHistory((previous) => [...previous, snapshot])
+      setDraft(result.draft)
+      setChanges(result.raw)
+      setNoteActions(result.actions)
+      setRevisionFields(result.fields)
+      setRefinement('')
+    } catch (reason) {
+      if (requestIdRef.current === requestId) setError(reason instanceof Error ? reason.message : 'La modification a échoué. Le brouillon précédent est conservé.')
+    } finally {
+      if (requestIdRef.current === requestId) setLoading(false)
+    }
+  }
+
+  function undoRefinement() {
+    const previous = history[history.length - 1]
+    if (!previous || loading) return
+    setDraft(previous.draft)
+    setChanges(previous.changes)
+    setNoteActions(previous.actions)
+    setHistory((items) => items.slice(0, -1))
+    setRevisionFields([])
+    setError(null)
   }
 
   async function callWithJson<T>(request: string, parser: (answer: string) => T): Promise<T> {
@@ -398,7 +473,7 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
   }
 
   function applyDraft() {
-    if (!draft) return
+    if (!draft || loading) return
     if (analysis?.action === 'edit') {
       if (!target) { setError('L’objet à modifier n’existe plus.'); return }
       if (draft.type === 'note') updateNote(target.id, { title: draft.title, content: draft.content, tags: draft.tags, raw: draft.raw })
@@ -421,7 +496,7 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
         if (['actif', 'pause', 'termine', 'aborted'].includes(String(changes.status))) patch.status = changes.status
         if (typeof changes.path === 'string') patch.path = changes.path
         if (typeof changes.folderId === 'string' && data.folders.some((f) => f.id === changes.folderId)) patch.folderId = changes.folderId
-        if ('imageUrl' in changes) patch.layout = target.item.layout.filter((m) => m.type !== 'image').concat(draft.imageUrl ? [{ id: uid('mod'), type: 'image', imageUrl: draft.imageUrl }] : [])
+        if ('imageUrl' in changes) patch.layout = (target.item.layout || []).filter((m) => m.type !== 'image').concat(draft.imageUrl ? [{ id: uid('mod'), type: 'image', imageUrl: draft.imageUrl }] : [])
         updateProject(target.id, patch)
       }
       applyNotes(target.id)
@@ -487,7 +562,7 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
 
   return (
     <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-8" onClick={close}>
-      <div onClick={(event) => event.stopPropagation()} className="bg-surface border border-border rounded-2xl shadow-2xl flex flex-col w-full" style={{ maxWidth: 880, maxHeight: '86vh' }}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Créer ou modifier avec l’IA" onClick={(event) => event.stopPropagation()} className="bg-surface border border-border rounded-2xl shadow-2xl flex flex-col w-full" style={{ width: '80vw', maxWidth: 'calc(100vw - 32px)', height: '80vh', maxHeight: '80vh' }}>
         <div className="flex items-center justify-between px-7 py-5 border-b border-border flex-shrink-0">
           <div className="flex items-center gap-2"><SparklesIcon size={17} /><h2 className="text-[18px] font-bold">Créer ou modifier avec l&apos;IA</h2></div>
           <button type="button" onClick={close} className="border-none bg-transparent text-text-muted cursor-pointer flex items-center" aria-label="Fermer"><XIcon size={20} /></button>
@@ -496,15 +571,15 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
           <form onSubmit={aiCall} className="flex flex-col gap-3">
             <p className="text-[13.5px] text-text-muted leading-relaxed">Décris ce que tu veux créer ou modifier. L&apos;IA prépare une proposition structurée que tu pourras vérifier avant de l&apos;appliquer.</p>
             <label className="flex flex-col gap-2 text-[13px]">Étape 1 · Objet à créer ou modifier
-              <select value={selection} disabled={loading} onChange={(event) => { setSelection(event.target.value); setAnalysis(null); setDraft(null); setQuestions([]); setError(null) }} className="bg-bg border border-border rounded-lg p-2">
+              <select value={selection} disabled={loading || !!draft} onChange={(event) => { setSelection(event.target.value); setAnalysis(null); setDraft(null); setQuestions([]); setError(null) }} className="bg-bg border border-border rounded-lg p-2">
                 <option value="auto">Laisser l’IA choisir selon la demande</option>
                 <option value="create">Créer un nouvel objet</option>
                 {objects.map((item) => <option key={item.id} value={item.id}>Modifier · {item.type} · {item.title}</option>)}
               </select>
               <span className="text-text-muted">{objects.length} objets existants disponibles dans la liste.</span>
             </label>
-            <Textarea value={prompt} onChange={(event) => { setPrompt(event.target.value); setDraft(null); setAnalysis(null); setQuestions([]) }} placeholder="Ex. Crée un projet vidéo pour une série de tutoriels ESP32, avec YouTube et TikTok." disabled={loading} required autoFocus className="w-full" style={{ minHeight: 100 }} />
-            <div className="flex justify-end"><PrimaryButton type="submit" disabled={!prompt.trim() || loading}><span className="flex items-center gap-1.5">{loading && <Spinner size={13} />}<SparklesIcon size={13} /> {loading ? 'Génération…' : 'Générer la proposition'}</span></PrimaryButton></div>
+            <Textarea value={prompt} onChange={(event) => { setPrompt(event.target.value); setDraft(null); setAnalysis(null); setQuestions([]) }} placeholder="Ex. Crée un projet vidéo pour une série de tutoriels ESP32, avec YouTube et TikTok." disabled={loading || !!draft} required autoFocus className="w-full" style={{ minHeight: 100 }} />
+            <div className="flex justify-end"><PrimaryButton type="submit" disabled={!prompt.trim() || loading || !!draft}><span className="flex items-center gap-1.5">{loading && <Spinner size={13} />}<SparklesIcon size={13} /> {loading ? 'Génération…' : 'Générer la proposition'}</span></PrimaryButton></div>
           </form>
           {loading && <ProcessingPanel step={step} attempt={attempt} />}
           {error && <p className="mt-4 text-[13px] text-danger">{error}</p>}
@@ -512,7 +587,7 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
             <div className="mt-6 pt-5 border-t border-border">
               <div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-2">Étape 1 sur 3 · Analyse</div>
               <div className="rounded-xl border border-border bg-bg p-4">
-                <p className="text-[11px] font-bold text-accent-text uppercase tracking-wide mb-1">{analysis.action === 'edit' ? 'Modifier' : 'Créer'} · {analysis.type}</p>
+                <p className="text-[11px] font-bold text-accent-soft-text uppercase tracking-wide mb-1">{analysis.action === 'edit' ? 'Modifier' : 'Créer'} · {analysis.type}</p>
                 <h3 className="text-[17px] font-bold mb-2">{analysis.title}</h3>
                 <p className="text-[13.5px] text-text-muted">{analysis.description}</p>
               </div>
@@ -523,7 +598,7 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
               <div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-2">Étape 2 sur 3 · Précisions</div>
               <p className="text-[13.5px] text-text-muted mb-4">Valide les réponses proposées ou ajuste-les. Les champs sans astérisque sont facultatifs.</p>
               <div className="flex flex-col gap-3">
-                {questions.map((question) => <label key={question.id} className="flex flex-col gap-1"><span className="text-[13px] font-bold">{question.label}{question.required && ' *'}</span>{question.suggestedAnswer && <span className="text-[12px] text-accent-text">Réponse proposée · modifiable</span>}{question.description && <span className="text-[12px] text-text-faint">{question.description}</span>}<Textarea value={answers[question.id] || ''} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))} placeholder={question.placeholder} required={question.required} className="w-full" style={{ minHeight: 68 }} /></label>)}
+                {questions.map((question) => <label key={question.id} className="flex flex-col gap-1"><span className="text-[13px] font-bold">{question.label}{question.required && ' *'}</span>{question.suggestedAnswer && <span className="text-[12px] text-accent-soft-text">Réponse proposée · modifiable</span>}{question.description && <span className="text-[12px] text-text-faint">{question.description}</span>}<Textarea value={answers[question.id] || ''} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value }))} placeholder={question.placeholder} required={question.required} className="w-full" style={{ minHeight: 68 }} /></label>)}
               </div>
               <div className="flex justify-end mt-4"><PrimaryButton type="submit"><span className="flex items-center gap-1.5"><SparklesIcon size={13} /> Valider et générer la proposition</span></PrimaryButton></div>
             </form>
@@ -531,22 +606,37 @@ export function CreateWithAiModal({ open, onClose }: { open: boolean; onClose: (
           {draft && <div className="mt-6 pt-5 border-t border-border"><div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-2">{analysis?.action === 'edit' ? `Modification de ${target?.title || ''}` : 'Élément à créer'}</div><DraftPreview draft={draft} />
             {analysis?.action === 'edit' && <><PreviewField label="Champs modifiés" value={Object.keys(changes).filter((key) => !['type', 'noteActions'].includes(key)).join(', ')} /><details className="mt-3"><summary className="cursor-pointer text-[13px]">Voir toutes les modifications</summary><pre className="mt-2 whitespace-pre-wrap text-[12px] overflow-auto">{JSON.stringify(Object.fromEntries(Object.entries(changes).filter(([key]) => !['type', 'noteActions'].includes(key))), null, 2)}</pre></details></>}
             {noteActions.length > 0 && <div className="mt-4 flex flex-col gap-3"><h3 className="font-bold">Notes et liaisons proposées</h3>{noteActions.map((action, index) => <div key={index} className="border border-border rounded-lg p-3"><PreviewField label={action.action === 'delete' ? 'Supprimer partout' : action.action === 'create' ? 'Créer une note' : action.action === 'unlink' ? 'Délier la note' : 'Lier la note'} value={stringValue(action.title) || data.notes.find((n) => n.id === action.noteId)?.title || 'Cet objet'} />{Boolean(action.content) && <Markdown text={String(action.content)} />}<PreviewField label="Projets" value={stringList(action.projectIds).map((id) => id === '$self' ? 'Ce projet' : data.projects.find((p) => p.id === id)?.name || id).join(', ')} /></div>)}</div>}</div>}
+          {draft && <form onSubmit={refineDraft} className="mt-5 border-t border-border pt-5 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold">Ajuster cette proposition{history.length > 0 ? ` · version ${history.length + 1}` : ''}</h3>
+              <SecondaryButton onClick={undoRefinement} disabled={loading || !history.length}>Annuler le dernier ajustement</SecondaryButton>
+            </div>
+            {history.length > 0 && <details className="text-sm"><summary className="cursor-pointer text-text-muted">Voir la version précédente</summary><div className="mt-3"><DraftPreview draft={history[history.length - 1].draft} /></div></details>}
+            {revisionFields.length > 0 && <p role="status" className="text-xs text-text-muted">Champs ajustés : {revisionFields.map((key) => ({ name: 'nom', title: 'titre', tasks: 'tâches', checklist: 'checklist', deadlines: 'échéances', description: 'description', content: 'contenu', stack: 'stack', links: 'liens', noteActions: 'notes liées', tags: 'tags', projectType: 'type de projet', causes: 'causes', solution: 'solution', projectNames: 'projets liés' } as Record<string, string>)[key] || key).join(', ')}.</p>}
+            <Textarea aria-label="Ajustements du brouillon" value={refinement} onChange={(event) => setRefinement(event.target.value)} placeholder="Ex. Ajoute les tests aux tâches et avance la première échéance. Garde le reste." disabled={loading} className="w-full min-h-24" />
+            <p className="text-xs text-text-faint">Le brouillon reste ici jusqu’à validation. Les ajustements conservent les autres détails.</p>
+            <div className="flex justify-between gap-2">
+              <SecondaryButton onClick={reset} disabled={loading}>Nouvelle demande</SecondaryButton>
+              <PrimaryButton type="submit" disabled={loading || !refinement.trim()}>{loading ? 'Modification…' : 'Ajuster le brouillon'}</PrimaryButton>
+            </div>
+          </form>}
         </div>
-        {draft && <div className="flex justify-end gap-2 px-7 py-4 border-t border-border flex-shrink-0"><SecondaryButton onClick={close}>Abandonner</SecondaryButton><PrimaryButton onClick={applyDraft}>{analysis?.action === 'edit' ? 'Appliquer les modifications' : 'Approuver la création'}</PrimaryButton></div>}
+        {draft && <div className="flex justify-end gap-2 px-7 py-4 border-t border-border flex-shrink-0"><SecondaryButton onClick={close}>Abandonner</SecondaryButton><PrimaryButton onClick={applyDraft} disabled={loading}>{analysis?.action === 'edit' ? 'Appliquer les modifications' : 'Approuver la création'}</PrimaryButton></div>}
       </div>
     </div>
   )
 }
 
-function ProcessingPanel({ step, attempt }: { step: 'analysis' | 'requirements' | 'creation' | null; attempt: number }) {
+function ProcessingPanel({ step, attempt }: { step: 'analysis' | 'requirements' | 'creation' | 'refinement' | null; attempt: number }) {
   const isAnalysis = step === 'analysis'
   const isRequirements = step === 'requirements'
+  const isRefinement = step === 'refinement'
   return (
-    <div className="mt-5 rounded-xl border border-accent bg-accent-soft p-5 flex items-center gap-3 text-[13.5px] text-accent-text">
+    <div className="mt-5 rounded-xl border border-accent bg-accent-soft p-5 flex items-center gap-3 text-[13.5px] text-accent-soft-text">
       <Spinner size={18} />
       <div>
-        <p className="font-bold">Étape {isAnalysis ? '1' : isRequirements ? '2' : '3'} sur 3 · {isAnalysis ? 'Analyse de la demande' : isRequirements ? 'Recherche des informations manquantes' : 'Création de la proposition'}</p>
-        <p className="text-[12.5px] opacity-80">{isAnalysis ? 'L’IA identifie le type, le titre et l’objectif de l’élément.' : isRequirements ? 'L’IA vérifie si une précision est indispensable avant de continuer.' : 'L’IA ajoute les détails utiles : liens, image, tags, tâches et échéances.'}{attempt > 1 && ` Nouvelle tentative JSON (${attempt}/3).`}</p>
+        <p className="font-bold">{isRefinement ? 'Ajustement du brouillon' : <>Étape {isAnalysis ? '1' : isRequirements ? '2' : '3'} sur 3 · {isAnalysis ? 'Analyse de la demande' : isRequirements ? 'Recherche des informations manquantes' : 'Création de la proposition'}</>}</p>
+        <p className="text-[12.5px] opacity-80">{isRefinement ? 'L’IA modifie la proposition actuelle et conserve les détails non concernés.' : isAnalysis ? 'L’IA identifie le type, le titre et l’objectif de l’élément.' : isRequirements ? 'L’IA vérifie si une précision est indispensable avant de continuer.' : 'L’IA ajoute les détails utiles : liens, image, tags, tâches et échéances.'}{attempt > 1 && ` Nouvelle tentative JSON (${attempt}/3).`}</p>
       </div>
     </div>
   )
@@ -554,12 +644,60 @@ function ProcessingPanel({ step, attempt }: { step: 'analysis' | 'requirements' 
 
 function DraftPreview({ draft }: { draft: AiDraft }) {
   if (draft.type === 'note') {
-    return <div className="rounded-xl border border-border bg-bg p-4"><p className="text-[11px] font-bold text-accent-text uppercase tracking-wide mb-1">Note</p><h3 className="text-[17px] font-bold mb-2">{draft.title}</h3>{draft.tags.length > 0 && <p className="text-[12px] text-text-faint mb-3">Tags : {draft.tags.join(', ')}</p>}{draft.raw ? <pre className="whitespace-pre-wrap font-mono text-[13.5px] text-text">{draft.content}</pre> : <Markdown text={draft.content} />}</div>
+    return <div className="rounded-xl border border-border bg-bg p-4">
+      <p className="text-[11px] font-bold text-accent-soft-text uppercase tracking-wide mb-1">Note</p>
+      <h3 className="text-[17px] font-bold mb-2">{draft.title}</h3>
+      {draft.tags.length > 0 && <p className="text-[12px] text-text-faint mb-3">Tags : {draft.tags.join(', ')}</p>}
+      {draft.raw ? <pre className="whitespace-pre-wrap font-mono text-[13.5px] text-text">{draft.content}</pre> : <Markdown text={draft.content} />}
+    </div>
   }
   if (draft.type === 'error') {
-    return <div className="rounded-xl border border-border bg-bg p-4"><p className="text-[11px] font-bold text-danger uppercase tracking-wide mb-1">Erreur</p><h3 className="text-[17px] font-bold mb-3">{draft.title}</h3><PreviewField label="Description" value={draft.content} /><PreviewField label="Causes" value={draft.causes} /><PreviewField label="Solution" value={draft.solution} />{draft.projectNames.length > 0 && <PreviewField label="Projets liés" value={draft.projectNames.join(', ')} />}</div>
+    return <div className="rounded-xl border border-border bg-bg p-4">
+      <p className="text-[11px] font-bold text-danger uppercase tracking-wide mb-1">Erreur</p>
+      <h3 className="text-[17px] font-bold mb-3">{draft.title}</h3>
+      <PreviewField label="Description" value={draft.content} />
+      <PreviewField label="Causes" value={draft.causes} />
+      <PreviewField label="Solution" value={draft.solution} />
+      {draft.projectNames.length > 0 && <PreviewField label="Projets liés" value={draft.projectNames.join(', ')} />}
+    </div>
   }
-  return <div className="rounded-xl border border-border bg-bg p-4"><p className="text-[11px] font-bold text-accent-text uppercase tracking-wide mb-1">Projet</p><h3 className="text-[17px] font-bold mb-3">{draft.name}</h3><div className="grid grid-cols-2 gap-x-5 gap-y-3 text-[13px]"><PreviewField label="Type" value={draft.projectType === 'video' ? 'Vidéo' : 'Développement'} /><PreviewField label="Catégorie" value={draft.category} /><PreviewField label="Plateformes" value={draft.platforms.join(', ') || 'Aucune'} /><PreviewField label="Tags" value={draft.tags.join(', ') || 'Aucun'} /><PreviewField label="Stack" value={draft.stack.join(', ') || 'Aucune'} /><PreviewField label="Contenu" value={`${draft.tasks.length} tâche(s), ${draft.checklist.length} élément(s), ${draft.deadlines.length} échéance(s)`} /></div>{draft.description && <div className="mt-3 pt-3 border-t border-border"><PreviewField label="Description" value={draft.description} /></div>}{draft.links.length > 0 && <div className="mt-3"><PreviewField label="Liens" value={draft.links.map((link) => `${link.title} — ${link.url}`).join('\n')} /></div>}{draft.imageUrl && <img src={draft.imageUrl} alt="Illustration proposée" className="mt-3 max-h-48 rounded-lg border border-border object-cover" />}</div>
+  return (
+    <div className="rounded-xl border border-border bg-bg p-4">
+      <p className="text-[11px] font-bold text-accent-soft-text uppercase tracking-wide mb-1">Projet</p>
+      <h3 className="text-[17px] font-bold mb-3">{draft.name}</h3>
+      <div className="grid grid-cols-2 gap-x-5 gap-y-3 text-[13px]">
+        <PreviewField label="Type" value={draft.projectType === 'video' ? 'Vidéo' : 'Développement'} />
+        <PreviewField label="Catégorie" value={draft.category} />
+        <PreviewField label="Plateformes" value={draft.platforms.join(', ') || 'Aucune'} />
+        <PreviewField label="Tags" value={draft.tags.join(', ') || 'Aucun'} />
+        <PreviewField label="Stack" value={draft.stack.join(', ') || 'Aucune'} />
+        <PreviewField label="Contenu" value={`${draft.tasks.length} tâche(s), ${draft.checklist.length} élément(s), ${draft.deadlines.length} échéance(s)`} />
+      </div>
+      {draft.description && <div className="mt-3 pt-3 border-t border-border"><PreviewField label="Description" value={draft.description} /></div>}
+      {draft.links.length > 0 && <div className="mt-3"><PreviewField label="Liens" value={draft.links.map((link) => `${link.title} — ${link.url}`).join('\n')} /></div>}
+      {draft.tasks.length > 0 && <details open className="mt-4">
+        <summary className="font-semibold text-sm cursor-pointer">Tâches proposées</summary>
+        <DraftTaskList tasks={draft.tasks} />
+      </details>}
+      {draft.checklist.length > 0 && <details className="mt-3">
+        <summary className="font-semibold text-sm cursor-pointer">Checklist</summary>
+        <ul className="mt-2 text-sm">{draft.checklist.map((item, index) => <li key={index} className="border-b border-border py-2">
+          <span className="font-semibold">{item.label}</span>
+          {item.description && <p className="text-text-muted text-xs mt-1">{item.description}</p>}
+        </li>)}</ul>
+      </details>}
+      {draft.deadlines.length > 0 && <div className="mt-3"><PreviewField label="Échéances" value={draft.deadlines.map((item) => `${item.date} · ${item.label}`).join('\n')} /></div>}
+      {draft.imageUrl && <img src={draft.imageUrl} alt="Illustration proposée" className="mt-3 max-h-48 rounded-lg border border-border object-cover" />}
+    </div>
+  )
+}
+
+function DraftTaskList({ tasks }: { tasks: AiTask[] }) {
+  return <ul className="mt-2 flex flex-col gap-2 border-l border-border pl-3">{tasks.map((task, index) => <li key={index}>
+    <div className="flex items-start justify-between gap-3 text-sm"><span className="font-semibold">{task.name}</span><span className="text-xs text-text-faint whitespace-nowrap">{task.status === 'fait' ? 'Fait' : task.status === 'en_cours' ? 'En cours' : 'À faire'}</span></div>
+    {task.content && <div className="mt-1 text-xs text-text-muted"><Markdown text={task.content} /></div>}
+    {task.children.length > 0 && <DraftTaskList tasks={task.children} />}
+  </li>)}</ul>
 }
 
 function createTaskNodes(tasks: AiTask[]): TaskNode[] {
@@ -583,6 +721,7 @@ function restoreEntries(entries: Record<string, unknown>[], previous: Record<str
     const merged = { ...original, ...entry, id: original?.id || uid(kind) }
     if (kind === 'tasks') return { status: 'a_faire', content: '', ...merged, children: restoreEntries(objectList(entry.children ?? original?.children), objectList(original?.children), kind) }
     if (kind === 'checklist') return { status: defaultChecklistStatus((entry.type || original?.type || 'generique') as ChecklistType), ...merged }
+    if (kind === 'links') return { url: '', ...merged }
     if (kind === 'deadlines') return { status: String(entry.date) < todayISO() ? 'depasse' : 'a_venir', ...merged }
     return merged
   })
@@ -591,6 +730,12 @@ function restoreEntries(entries: Record<string, unknown>[], previous: Record<str
 function validateChanges(raw: Record<string, unknown>) {
   const arrays = ['tags', 'platforms', 'stack', 'projectNames', 'tasks', 'checklist', 'deadlines', 'links', 'noteActions']
   for (const key of arrays) if (key in raw && !Array.isArray(raw[key])) throw new Error(`Tableau invalide : ${key}`)
+  for (const key of ['tags', 'platforms', 'stack', 'projectNames']) {
+    if (Array.isArray(raw[key]) && raw[key].some((value) => typeof value !== 'string')) throw new Error(`Liste de textes invalide : ${key}`)
+  }
+  if ('projectType' in raw && !['dev', 'video'].includes(String(raw.projectType))) throw new Error('Type de projet invalide.')
+  if ('status' in raw && !['actif', 'pause', 'termine', 'aborted'].includes(String(raw.status))) throw new Error('Statut de projet invalide.')
+  if ('raw' in raw && typeof raw.raw !== 'boolean') throw new Error('Mode de note invalide.')
   for (const key of ['title', 'name', 'content', 'description', 'causes', 'solution', 'category', 'imageUrl']) {
     if (key in raw && typeof raw[key] !== 'string') throw new Error(`Texte invalide : ${key}`)
   }
@@ -599,6 +744,7 @@ function validateChanges(raw: Record<string, unknown>) {
     for (const value of entries) {
       const entry = asRecord(value)
       if (!entry || !stringValue(entry[kind === 'tasks' ? 'name' : kind === 'links' ? 'title' : 'label'])) throw new Error(`Élément invalide : ${kind}`)
+      if (kind === 'links' && 'url' in entry && (typeof entry.url !== 'string' || (entry.url && !/^https?:\/\//.test(entry.url)))) throw new Error('URL de lien invalide.')
       if (kind === 'tasks') {
         if ('status' in entry && !['a_faire', 'en_cours', 'fait'].includes(String(entry.status))) throw new Error('Statut de tâche invalide.')
         if ('children' in entry) visit(entry.children, kind)

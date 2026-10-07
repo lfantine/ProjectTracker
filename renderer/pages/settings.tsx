@@ -37,7 +37,7 @@ export default function SettingsPage() {
               onClick={() => setThemeMode(opt.value)}
               className={`text-sm font-semibold px-3.5 py-2 rounded-lg border cursor-pointer ${
                 themeMode === opt.value
-                  ? 'border-accent bg-accent-soft text-accent-text'
+                  ? 'border-accent bg-accent-soft text-accent-soft-text'
                   : 'border-border bg-transparent text-text'
               }`}
             >

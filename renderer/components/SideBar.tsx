@@ -92,7 +92,7 @@ export function SideBar() {
                 collapsed ? 'justify-center' : 'px-2.5'
               } ${
                 active
-                  ? 'bg-accent-soft text-accent-text font-bold'
+                  ? 'bg-accent-soft text-accent-soft-text font-bold'
                   : 'text-text-muted font-medium hover:bg-surface-hover'
               }`}
             >

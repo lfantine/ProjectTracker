@@ -72,6 +72,7 @@ export default function ProjectDetailPage() {
     cycleTaskStatus,
     removeTask,
     updateTask,
+    updateNote,
     moveTask,
     addDeadline,
     toggleDeadlineDone,
@@ -88,7 +89,17 @@ export default function ProjectDetailPage() {
   const { showToast } = useToast()
 
   const project = id ? findProject(id) : undefined
-  const [taskPath, setTaskPath] = useState<string[]>([])
+  const [taskPath, setTaskPath] = useState<string[]>(() => {
+    if (typeof window === 'undefined' || !id) return []
+    try {
+      const saved: unknown = JSON.parse(window.sessionStorage.getItem(`tracker_task_path_${id}`) || '[]')
+      return Array.isArray(saved) ? saved.filter((value): value is string => typeof value === 'string') : []
+    } catch { return [] }
+  })
+  useEffect(() => {
+    if (!id) return
+    try { window.sessionStorage.setItem(`tracker_task_path_${id}`, JSON.stringify(taskPath)) } catch {}
+  }, [id, taskPath])
   const [pickNote, setPickNote] = useState('')
   const [pickError, setPickError] = useState('')
 
@@ -180,7 +191,7 @@ export default function ProjectDetailPage() {
         </Select>
       </div>
       <div className="flex items-center gap-2 flex-wrap mb-6">
-        <span className="flex items-center gap-1 text-xs font-semibold bg-accent-soft text-accent-text px-2.5 py-1 rounded-md">
+        <span className="flex items-center gap-1 text-xs font-semibold bg-accent-soft text-accent-soft-text px-2.5 py-1 rounded-md">
           {project.type === 'video' ? <VideoIcon size={12} /> : <CodeIcon size={12} />}
           {PROJECT_TYPE_LABEL[project.type]}
         </span>
@@ -240,6 +251,7 @@ export default function ProjectDetailPage() {
           removeModule={removeModule}
           updateModule={updateModule}
           updateProject={updateProject}
+          updateNote={updateNote}
           addTask={addTask}
           addSubtask={addSubtask}
           cycleTaskStatus={cycleTaskStatus}
@@ -454,6 +466,7 @@ export default function ProjectDetailPage() {
 
       {selectedTask && (
         <TaskDetailModal
+          key={selectedTask.id}
           task={selectedTask}
           ancestors={taskAncestors}
           onClose={() => setTaskPath([])}
@@ -547,7 +560,7 @@ function DescriptionSection({
           onBlur={save}
           placeholder="Décris ce projet…"
           className="w-full"
-          style={{ minHeight: 100 }}
+          style={{ minHeight: 240 }}
         />
       ) : value ? (
         <p className="text-sm text-text-muted leading-relaxed whitespace-pre-wrap">{value}</p>
@@ -671,7 +684,7 @@ function ProjectLinkRow({
 
   return (
     <div onClick={() => onOpen(link.url)} className={`group flex items-center gap-2.5 py-2 cursor-pointer ${bordered ? 'border-t border-border' : ''}`}>
-      <span className="w-7 h-7 rounded-full bg-accent-soft text-accent-text flex items-center justify-center flex-shrink-0"><LinkIcon size={13} /></span>
+      <span className="w-7 h-7 rounded-full bg-accent-soft text-accent-soft-text flex items-center justify-center flex-shrink-0"><LinkIcon size={13} /></span>
       <div className="flex-1 min-w-0"><div className="text-[13px] font-semibold text-text truncate group-hover:text-accent transition-colors">{link.title}</div><div className="text-[11px] text-text-faint truncate">{hostname(link.url)}</div></div>
       <button type="button" onClick={(event) => { event.stopPropagation(); setEditing(true) }} className="border-none bg-transparent text-text-faint hover:text-text cursor-pointer p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Modifier le lien"><PencilIcon size={13} /></button>
       <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(link.id) }} className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon size={13} /></button>
@@ -755,9 +768,9 @@ function TaskDetailModal({
   }, [task.id])
 
   return (
-    <Modal open onClose={onClose} title="Détail de la tâche" width={640} center>
+    <Modal open onClose={onClose} title="Détail de la tâche" width={640} center allowProjectSwitch>
       {ancestors.length > 0 && (
-        <div className="flex items-center gap-1 flex-wrap mb-2 -mt-1">
+        <div className="flex items-center gap-1 flex-wrap mb-2 -mt-1 shrink-0">
           {ancestors.map((a, i) => (
             <React.Fragment key={a.id}>
               <button
@@ -773,28 +786,29 @@ function TaskDetailModal({
         </div>
       )}
       <input
-        key={task.id}
-        defaultValue={task.name}
-        onBlur={(e) => onUpdate({ name: e.target.value })}
-        className="text-[16px] font-bold bg-transparent border-none outline-none w-full mb-2 py-1"
+        value={task.name}
+        aria-label="Titre de la tâche"
+        onChange={(e) => onUpdate({ name: e.target.value })}
+        className="text-[16px] font-bold bg-transparent border-none outline-none w-full mb-2 py-1 shrink-0"
       />
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-3 shrink-0">
         {(['a_faire', 'en_cours', 'fait'] as const).map((st) => (
           <StatusPill
             key={st}
             label={TASK_STATUS_LABEL[st]}
             tone={statusTone(st)}
-            onClick={() => onUpdate({ status: st })}
+            onClick={task.children.length ? undefined : () => onUpdate({ status: st })}
             className={task.status === st ? 'ring-2 ring-accent' : ''}
           />
         ))}
       </div>
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] font-bold text-text-faint uppercase tracking-wide">Notes</span>
+      {task.children.length > 0 && <p className="text-xs text-text-faint mb-3 shrink-0">Statut calculé automatiquement à partir des sous-tâches.</p>}
+      <div className="flex items-center justify-between mb-1.5 shrink-0">
+        <span className="text-[11px] font-bold text-text-faint uppercase tracking-wide">Description</span>
         <Switch checked={previewMode} onChange={setPreviewMode} label="Aperçu" />
       </div>
       {previewMode ? (
-        <div className="bg-bg border border-border rounded-lg px-3 py-2" style={{ minHeight: 100 }}>
+        <div className="bg-bg border border-border rounded-lg px-3 py-2 flex-1 min-h-32 shrink-0 overflow-auto">
           {task.content ? (
             <Markdown text={task.content} />
           ) : (
@@ -803,16 +817,16 @@ function TaskDetailModal({
         </div>
       ) : (
         <Textarea
-          key={task.id}
-          defaultValue={task.content}
-          onBlur={(e) => onUpdate({ content: e.target.value })}
+          value={task.content}
+          aria-label="Description de la tâche"
+          onChange={(e) => onUpdate({ content: e.target.value })}
           placeholder="Notes sur cette tâche… (#, ##, -, **gras**)"
-          className="w-full"
-          style={{ minHeight: 100 }}
+          className="w-full flex-1 min-h-32 shrink-0"
+          style={{ resize: 'none' }}
         />
       )}
       {task.children.length > 0 && (
-        <div className="mt-3">
+        <div className="mt-3 max-h-36 overflow-auto shrink-0">
           <div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-1.5">
             Sous-tâches
           </div>
@@ -828,7 +842,7 @@ function TaskDetailModal({
           ))}
         </div>
       )}
-      <div className="flex gap-2 mt-3">
+      <div className="flex gap-2 mt-3 shrink-0">
         <Input
           value={subName}
           onChange={(e) => setSubName(e.target.value)}
@@ -848,7 +862,7 @@ function TaskDetailModal({
       <button
         type="button"
         onClick={onRemove}
-        className="flex items-center gap-1.5 border-none bg-transparent text-danger text-xs font-semibold cursor-pointer mt-4 self-start"
+        className="flex items-center gap-1.5 border-none bg-transparent text-danger text-xs font-semibold cursor-pointer mt-4 self-start shrink-0"
       >
         <TrashIcon size={13} /> Supprimer cette tâche
       </button>

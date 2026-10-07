@@ -25,13 +25,24 @@ export function TaskTree({
   onMove?: (draggedId: string, targetId: string, position: TaskDropPosition) => void
   visibleStatuses?: TaskStatus[]
 }) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [newName, setNewName] = useState('')
+  const [addingTop, setAddingTop] = useState(false)
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null)
   const [subName, setSubName] = useState('')
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ id: string; position: TaskDropPosition } | null>(null)
   const allFlat = flattenTasks(tasks)
-  const flat = visibleStatuses ? allFlat.filter((f) => visibleStatuses.includes(f.node.status)) : allFlat
+  const ancestors = new Map<string, TaskNode[]>()
+  function visit(nodes: TaskNode[], path: TaskNode[]) {
+    for (const node of nodes) {
+      ancestors.set(node.id, path)
+      visit(node.children, [...path, node])
+    }
+  }
+  visit(tasks, [])
+  const matching = visibleStatuses ? allFlat.filter((f) => visibleStatuses.includes(f.node.status)) : allFlat
+  const flat = matching.filter(({ node }) => !(ancestors.get(node.id) || []).some((parent) => collapsed.has(parent.id)))
 
   function resetDrag() {
     setDragId(null)
@@ -39,10 +50,10 @@ export function TaskTree({
   }
 
   return (
-    <div>
-      {flat.length === 0 && (
-        <p className="text-[13px] text-text-faint mb-2">
-          {allFlat.length === 0 ? 'Aucune tâche.' : 'Aucune tâche ne correspond au filtre.'}
+    <div className="flex flex-col gap-3">
+      {flat.length === 0 && allFlat.length > 0 && (
+        <p className="text-[13px] text-text-faint py-4 text-center">
+          Aucune tâche ne correspond au filtre.
         </p>
       )}
       <div className="flex flex-col">
@@ -61,6 +72,9 @@ export function TaskTree({
             <React.Fragment key={node.id}>
               <div
                 onClick={() => onOpenDetail?.(node.id)}
+                role={onOpenDetail ? 'button' : undefined}
+                tabIndex={onOpenDetail ? 0 : undefined}
+                onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onOpenDetail?.(node.id) } }}
                 draggable={!!onMove}
                 onDragStart={(e) => {
                   e.stopPropagation()
@@ -91,62 +105,93 @@ export function TaskTree({
                   resetDrag()
                 }}
                 onDragEnd={resetDrag}
-                style={{ marginLeft: depth * 22 }}
-                className={`flex items-center gap-2 transition-colors ${
+                style={{ marginLeft: Math.min(depth, 6) * 18 }}
+                className={`group flex items-center gap-3 transition-all ${
                   isCard
-                    ? 'px-3 py-2.5 mb-1.5 bg-surface2 rounded-lg border border-border'
-                    : 'px-2 py-1.5'
+                    ? 'px-4 py-3 mb-2 bg-surface rounded-xl border border-border hover:border-accent-soft hover:shadow-sm'
+                    : 'px-3 py-2 mb-1 border-l-2 border-border rounded-r-lg hover:bg-surface-hover'
                 } ${onOpenDetail ? 'cursor-pointer' : ''} ${isDragging ? 'opacity-40' : ''} ${dropClasses}`}
               >
+                {node.children.length > 0 ? (
+                  <button
+                    type="button"
+                    aria-label={`${collapsed.has(node.id) ? 'Déplier' : 'Replier'} ${node.name}`}
+                    aria-expanded={!collapsed.has(node.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setCollapsed((previous) => { const next = new Set(previous); if (next.has(node.id)) next.delete(node.id); else next.add(node.id); return next })
+                    }}
+                    className="text-text-faint w-4 flex-shrink-0 cursor-pointer hover:text-text"
+                  >
+                    {collapsed.has(node.id) ? '▸' : '▾'}
+                  </button>
+                ) : (
+                  <span className="w-4 flex-shrink-0 text-text-faint" aria-hidden="true">{depth > 0 ? '↳' : '·'}</span>
+                )}
                 {onMove && (
                   <span
-                    className="text-text-faint cursor-grab active:cursor-grabbing flex-shrink-0"
+                    className="text-text-faint cursor-grab active:cursor-grabbing flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                     title="Glisser pour réorganiser"
                   >
                     <GripIcon size={13} />
                   </span>
                 )}
                 <span
-                  className={`flex-1 ${isCard ? 'text-[13.5px] font-bold' : 'text-[12.5px] font-medium'} ${
+                  className={`flex-1 min-w-0 ${isCard ? 'text-[14px] font-semibold' : 'text-[13px] font-medium'} ${
                     depth >= 2 ? 'text-text-muted' : 'text-text'
                   }`}
                 >
-                  {node.name}
+                  {depth > 0 && visibleStatuses && (ancestors.get(node.id) || []).some((parent) => !visibleStatuses.includes(parent.status)) && (
+                    <span className="block text-[10px] text-text-faint font-normal mb-1 uppercase tracking-wide">
+                      {(ancestors.get(node.id) || []).map((parent) => parent.name).join(' / ')}
+                    </span>
+                  )}
+                  <span className={`block break-words ${node.status === 'fait' ? 'line-through text-text-faint' : ''}`}>{node.name}</span>
+                  {node.children.length > 0 && (
+                    <span className="block text-[11px] text-text-faint font-normal mt-1">
+                      {flattenTasks(node.children).filter(({ node }) => node.status === 'fait').length}/{flattenTasks(node.children).length} sous-tâches terminées
+                    </span>
+                  )}
                 </span>
-                <StatusPill
-                  label={TASK_STATUS_LABEL[node.status]}
-                  tone={statusTone(node.status)}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCycleStatus(node.id)
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setAddingSubFor(node.id)
-                    setSubName('')
-                  }}
-                  className="border-none bg-transparent text-text-faint text-[11.5px] cursor-pointer font-sans"
-                >
-                  + sous-tâche
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onRemove(node.id)
-                  }}
-                  className="border-none bg-transparent text-text-faint cursor-pointer"
-                >
-                  <TrashIcon size={14} />
-                </button>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <StatusPill
+                    label={TASK_STATUS_LABEL[node.status]}
+                    tone={statusTone(node.status)}
+                    onClick={node.children.length ? undefined : (e) => {
+                      e.stopPropagation()
+                      onCycleStatus(node.id)
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAddingSubFor(addingSubFor === node.id ? null : node.id)
+                      setSubName('')
+                    }}
+                    className="p-1.5 border-none bg-transparent text-text-faint hover:text-accent cursor-pointer rounded-md transition-colors"
+                    title="Ajouter une sous-tâche"
+                  >
+                    <PlusIcon size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemove(node.id)
+                    }}
+                    aria-label={`Supprimer ${node.name}`}
+                    className="p-1.5 border-none bg-transparent text-text-faint hover:text-danger cursor-pointer rounded-md transition-colors"
+                    title="Supprimer"
+                  >
+                    <TrashIcon size={14} />
+                  </button>
+                </div>
               </div>
               {addingSubFor === node.id && (
                 <div
                   style={{ marginLeft: (depth + 1) * 22 }}
-                  className="flex gap-2 mb-2"
+                  className="flex gap-2 mb-3 mt-1"
                 >
                   <Input
                     autoFocus
@@ -155,7 +200,8 @@ export function TaskTree({
                     placeholder="Nom de la sous-tâche"
                     className="flex-1"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && subName.trim()) {
+                      if (e.key === 'Escape') setAddingSubFor(null)
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing && subName.trim()) {
                         onAddSub(node.id, subName.trim())
                         setAddingSubFor(null)
                       }
@@ -176,31 +222,49 @@ export function TaskTree({
           )
         })}
       </div>
-      <div className="flex gap-2 mt-3">
-        <Input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Nouvelle tâche…"
-          className="flex-1"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newName.trim()) {
+      {addingTop ? (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-accent-soft bg-surface">
+          <Input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Nom de la tâche — Entrée pour ajouter, Échap pour fermer"
+            className="flex-1 bg-transparent border-none focus:ring-0 py-1.5"
+            onBlur={() => {
+              if (!newName.trim()) setAddingTop(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setNewName('')
+                setAddingTop(false)
+              }
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing && newName.trim()) {
+                onAddTop(newName.trim())
+                setNewName('')
+              }
+            }}
+          />
+          <PrimaryButton
+            onClick={() => {
+              if (!newName.trim()) return
               onAddTop(newName.trim())
               setNewName('')
-            }
-          }}
-        />
-        <PrimaryButton
-          onClick={() => {
-            if (!newName.trim()) return
-            onAddTop(newName.trim())
-            setNewName('')
-          }}
+            }}
+          >
+            Ajouter
+          </PrimaryButton>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAddingTop(true)}
+          className={`flex items-center justify-center gap-1.5 w-full rounded-xl border border-dashed border-border bg-transparent text-[13px] font-medium text-text-faint hover:text-accent hover:border-accent-soft cursor-pointer transition-colors ${
+            allFlat.length === 0 ? 'py-5' : 'py-2'
+          }`}
         >
-          <span className="flex items-center gap-1">
-            <PlusIcon size={14} /> Ajouter
-          </span>
-        </PrimaryButton>
-      </div>
+          <PlusIcon size={14} /> {allFlat.length === 0 ? 'Créer la première tâche' : 'Ajouter une tâche'}
+        </button>
+      )}
     </div>
   )
 }

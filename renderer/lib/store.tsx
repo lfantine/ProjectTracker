@@ -36,6 +36,8 @@ import {
   updateTaskNode,
   type TaskDropPosition,
 } from './helpers'
+import { removeNoteFromData, restoreNoteFromData } from './noteOperations'
+import { syncTaskStatuses } from './taskStatus'
 import { TASK_STATUS_ORDER, defaultChecklistStatus, nextChecklistStatus } from './constants'
 
 interface DataContextValue {
@@ -80,6 +82,7 @@ interface DataContextValue {
     patch: Partial<Pick<Note, 'title' | 'content' | 'tags' | 'raw'>>
   ) => void
   removeNote: (id: string) => void
+  restoreNote: (id: string) => void
 
   addError: (input: {
     title: string
@@ -187,7 +190,7 @@ function newProjectShell(input: {
     noteIds: input.noteIds || [],
     errorIds: input.errorIds || [],
     checklist: input.checklist || [],
-    tasks: input.tasks || [],
+    tasks: syncTaskStatuses(input.tasks),
     deadlines: input.deadlines || [],
     links: [],
     layout: defaultProjectLayout(),
@@ -229,7 +232,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setData((s) => ({
         ...s,
         projects: s.projects.map((p) =>
-          p.id === id ? { ...fn(p), updatedAt: new Date().toISOString() } : p
+          p.id === id ? (() => {
+            const updated = fn(p)
+            return { ...updated, tasks: syncTaskStatuses(updated.tasks), updatedAt: new Date().toISOString() }
+          })() : p
         ),
       }))
     },
@@ -292,15 +298,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const removeNote = useCallback((id: string) => {
-    setData((s) => ({
-      ...s,
-      notes: s.notes.filter((n) => n.id !== id),
-      projects: s.projects.map((p) => ({
-        ...p,
-        noteIds: (p.noteIds || []).filter((x) => x !== id),
-        layout: p.layout.filter((module) => module.type !== 'note' || module.refId !== id),
-      })),
-    }))
+    setData((s) => removeNoteFromData(s, id))
+  }, [])
+
+  const restoreNote = useCallback((id: string) => {
+    setData((s) => restoreNoteFromData(s, id))
   }, [])
 
   const addError: DataContextValue['addError'] = useCallback((input) => {
@@ -667,6 +669,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addNote,
       updateNote,
       removeNote,
+      restoreNote,
       addError,
       updateError,
       removeError,
@@ -714,6 +717,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       addNote,
       updateNote,
       removeNote,
+      restoreNote,
       addError,
       updateError,
       removeError,

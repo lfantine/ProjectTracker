@@ -83,11 +83,11 @@ function CategoryButton({
       type="button"
       onClick={onClick}
       className={`flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-[13px] font-semibold text-left transition-colors border-none cursor-pointer ${
-        active ? 'bg-accent-soft text-accent-text' : 'bg-transparent text-text-muted hover:bg-surface-hover'
+        active ? 'bg-accent-soft text-accent-soft-text' : 'bg-transparent text-text-muted hover:bg-surface-hover'
       }`}
     >
       <span className="truncate">{label}</span>
-      <span className={`text-[10.5px] font-bold flex-shrink-0 ${active ? 'text-accent-text' : 'text-text-faint'}`}>
+      <span className={`text-[10.5px] font-bold flex-shrink-0 ${active ? 'text-accent-soft-text' : 'text-text-faint'}`}>
         {count}
       </span>
     </button>
@@ -122,7 +122,7 @@ export function ModuleCatalogCard({
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="w-9 h-9 rounded-lg bg-accent-soft text-accent-text flex items-center justify-center flex-shrink-0">
+        <span className="w-9 h-9 rounded-lg bg-accent-soft text-accent-soft-text flex items-center justify-center flex-shrink-0">
           <Icon size={17} />
         </span>
         {badge}
@@ -146,7 +146,7 @@ export function ModuleRemainingBadge({ remaining }: { remaining: number | null }
   return (
     <span
       className={`text-[10.5px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap ${
-        remaining === 0 ? 'bg-surface2 text-text-faint' : 'bg-accent-soft text-accent-text'
+        remaining === 0 ? 'bg-surface2 text-text-faint' : 'bg-accent-soft text-accent-soft-text'
       }`}
     >
       {remaining === 0 ? 'Complet' : `${remaining} dispo`}

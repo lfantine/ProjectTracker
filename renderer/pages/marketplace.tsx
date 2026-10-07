@@ -91,7 +91,7 @@ export default function MarketplacePage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-10 h-10 rounded-lg bg-accent-soft text-accent-text flex items-center justify-center flex-shrink-0">
+                      <span className="w-10 h-10 rounded-lg bg-accent-soft text-accent-soft-text flex items-center justify-center flex-shrink-0">
                         <selectedEntry.icon size={19} />
                       </span>
                       <div className="min-w-0">

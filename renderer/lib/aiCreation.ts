@@ -100,3 +100,32 @@ export async function requestAiJson<T>(
   }
   throw new Error(`La proposition de l’IA reste invalide après 3 tentatives (${detail}). Réessaie la génération.`)
 }
+
+export interface AiErrorDraft {
+  title: string
+  content: string
+  causes: string
+  solution: string
+}
+
+export function parseAiErrorDraft(answer: string): AiErrorDraft {
+  const draft: unknown = JSON.parse(answer.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''))
+  if (!draft || typeof draft !== 'object' || Array.isArray(draft)) throw new Error('Fiche erreur invalide.')
+  const fields = draft as Record<string, unknown>
+  if (['title', 'content', 'causes', 'solution'].some((key) => typeof fields[key] !== 'string') || !(fields.title as string).trim()) throw new Error('Fiche erreur invalide.')
+  return { title: (fields.title as string).trim(), content: fields.content as string, causes: fields.causes as string, solution: fields.solution as string }
+}
+
+/** A refinement is a patch over the existing proposal, never a fresh object. */
+export function mergeAiDraftChanges(current: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  if (patch.type !== current.type) throw new Error('Le type du brouillon ne peut pas changer.')
+  for (const key of ['id', 'createdAt']) {
+    if (key in patch && patch[key] !== current[key]) throw new Error(`Le champ ${key} ne peut pas changer.`)
+  }
+  return { ...current, ...patch }
+}
+
+// Keep full metadata for untouched existing entries, especially task IDs and progress.
+export function buildAiDraftProposal(draft: Record<string, unknown>, changes: Record<string, unknown>, current?: Record<string, unknown>): Record<string, unknown> {
+  return { ...draft, ...current, ...changes, type: draft.type }
+}

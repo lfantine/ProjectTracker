@@ -123,7 +123,7 @@ export default function NewProjectPage() {
                       onClick={() => setType(t)}
                       className={`flex items-center gap-2.5 px-5 py-4 rounded-xl border cursor-pointer transition-colors ${
                         active
-                          ? 'border-accent bg-accent-soft text-accent-text'
+                          ? 'border-accent bg-accent-soft text-accent-soft-text'
                           : 'border-border bg-transparent text-text hover:bg-surface-hover'
                       }`}
                     >
