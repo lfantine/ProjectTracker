@@ -10,6 +10,7 @@ import { TaskTree } from './TaskTree'
 import { TaskKanban } from './TaskKanban'
 import { DeadlineList } from './DeadlineList'
 import { Markdown } from './Markdown'
+import { ChartModuleBody } from './ChartModule'
 import {
   ModuleCatalogGrid,
   ModuleCategorySidebar,
@@ -21,6 +22,7 @@ import { GhostButton, Input, Modal, PrimaryButton, TagChip, Textarea } from './u
 import {
   AlertIcon,
   ArrowLeftIcon,
+  ChartIcon,
   ExternalLinkIcon,
   GripIcon,
   ImageIcon,
@@ -107,10 +109,11 @@ export function ModulesColumn({
   }, [project.id, taskView, taskStatusFilter])
   const [stackEditing, setStackEditing] = useState(false)
   const [deadlinesEditing, setDeadlinesEditing] = useState(false)
-  const [imageEditing, setImageEditing] = useState<Record<string, boolean>>({})
+  const [moduleEditing, setModuleEditing] = useState<Record<string, boolean>>({})
 
-  function isImageEditing(mod: ProjectModule) {
-    if (mod.id in imageEditing) return imageEditing[mod.id]
+  function isModuleEditing(mod: ProjectModule) {
+    if (mod.id in moduleEditing) return moduleEditing[mod.id]
+    if (mod.type === 'chart') return !mod.title && !(mod.chart?.points.length)
     return !mod.imageUrl && !mod.title && !mod.text
   }
 
@@ -323,7 +326,7 @@ export function ModulesColumn({
         )
       }
       case 'image': {
-        const editing = isImageEditing(mod)
+        const editing = isModuleEditing(mod)
         return (
           <div>
             <ModuleHeader
@@ -332,7 +335,7 @@ export function ModulesColumn({
               right={
                 <EditToggle
                   active={editing}
-                  onClick={() => setImageEditing((prev) => ({ ...prev, [mod.id]: !editing }))}
+                  onClick={() => setModuleEditing((prev) => ({ ...prev, [mod.id]: !editing }))}
                 />
               }
               onRemove={() => removeModule(project.id, mod.id)}
@@ -342,6 +345,39 @@ export function ModulesColumn({
               module={mod}
               editing={editing}
               onChange={(patch) => updateModule(project.id, mod.id, patch)}
+            />
+          </div>
+        )
+      }
+      case 'chart': {
+        const editing = isModuleEditing(mod)
+        return (
+          <div>
+            <ModuleHeader
+              title={mod.title || 'Graphique'}
+              icon={<ChartIcon size={15} className="text-text-faint flex-shrink-0" />}
+              right={
+                <EditToggle
+                  active={editing}
+                  onClick={() => setModuleEditing((prev) => ({ ...prev, [mod.id]: !editing }))}
+                />
+              }
+              onRemove={() => removeModule(project.id, mod.id)}
+              {...drag}
+            />
+            {editing && (
+              <Input
+                aria-label="Titre du graphique"
+                value={mod.title || ''}
+                onChange={(e) => updateModule(project.id, mod.id, { title: e.target.value })}
+                placeholder="Titre du graphique (optionnel)…"
+                className="w-full mb-3"
+              />
+            )}
+            <ChartModuleBody
+              config={mod.chart}
+              editing={editing}
+              onChange={(chart) => updateModule(project.id, mod.id, { chart })}
             />
           </div>
         )
@@ -402,6 +438,8 @@ export function ModulesColumn({
           onAdd={(type) => {
             if (type === 'image') {
               addModule(project.id, { id: uid('mod'), type: 'image', title: '', imageUrl: '', text: '' })
+            } else if (type === 'chart') {
+              addModule(project.id, { id: uid('mod'), type: 'chart', title: '', chart: { kind: 'bar', points: [] } })
             } else {
               addModule(project.id, { id: uid('mod'), type })
             }

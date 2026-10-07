@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import type { ModuleType } from './types'
-import { AlertIcon, CalendarIcon, CodeIcon, ImageIcon, NoteIcon } from '../components/icons'
+import { AlertIcon, CalendarIcon, ChartIcon, CodeIcon, ImageIcon, NoteIcon } from '../components/icons'
 
 export type ModuleCategory = 'suivi' | 'contenu' | 'liens'
 
@@ -46,6 +46,14 @@ export const MODULE_CATALOG: ModuleCatalogEntry[] = [
     description: 'Bloc libre avec une image et/ou du texte en markdown.',
     category: 'contenu',
     icon: ImageIcon,
+    kind: 'direct',
+  },
+  {
+    type: 'chart',
+    title: 'Graphique',
+    description: 'Graphique simple en barres ou en courbe, à partir de valeurs saisies.',
+    category: 'contenu',
+    icon: ChartIcon,
     kind: 'direct',
   },
   {

@@ -44,6 +44,7 @@
   --tracker-accent-soft: oklch(94% 0.06 30);
   --tracker-accent-text: oklch(20% 0.08 30);
   --tracker-accent-soft-text: oklch(20% 0.08 30);
+  --chart-series-1: #2a78d6;
   
   --tracker-danger: oklch(60% 0.18 25);
   --tracker-danger-soft: oklch(95% 0.05 25);
@@ -71,6 +72,7 @@
   --tracker-accent-soft: oklch(25% 0.10 30);
   --tracker-accent-text: oklch(10% 0.02 30);
   --tracker-accent-soft-text: oklch(85% 0.12 30);
+  --chart-series-1: #3987e5;
   
   --tracker-danger: oklch(65% 0.18 25);
   --tracker-danger-soft: oklch(25% 0.08 25);

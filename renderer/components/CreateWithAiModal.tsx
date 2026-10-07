@@ -14,12 +14,17 @@ import {
   AI_NOTES_FORMAT,
   AI_CREATION_FORMAT,
   AI_REQUIREMENTS_FORMAT,
+  buildLayoutFromAiModules,
+  parseAiModules,
+  type AiModuleSpec,
   type AiCreationAnalysis,
   type AiCreationQuestion,
 } from '../lib/aiCreation'
 import { defaultChecklistStatus } from '../lib/constants'
 import { todayISO, uid } from '../lib/helpers'
-import type { ChecklistType, ProjectType, TaskNode, TaskStatus } from '../lib/types'
+import { defaultProjectLayout } from '../lib/types'
+import type { ChecklistType, ProjectModule, ProjectType, TaskNode, TaskStatus } from '../lib/types'
+import { MODULE_CATALOG } from '../lib/moduleCatalog'
 
 type AiTask = { name: string; content: string; status: TaskStatus; children: AiTask[] }
 type AiChecklist = { label: string; type: ChecklistType; link?: string; description?: string; date?: string }
@@ -49,6 +54,8 @@ type AiDraft =
       tasks: AiTask[]
       checklist: AiChecklist[]
       deadlines: AiDeadline[]
+      // null = the proposal leaves the page layout untouched
+      modules: AiModuleSpec[] | null
     }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -193,13 +200,14 @@ function parseAiDraft(answer: string, fallbackCategory: string): AiDraft {
       tasks: parseTasks(data.tasks),
       checklist: parseChecklist(data.checklist),
       deadlines: parseDeadlines(data.deadlines),
+      modules: data.modules == null ? null : parseAiModules(data.modules),
     }
   }
   throw new Error('Type non pris en charge. Utilise « note », « error » ou « project ».')
 }
 
 export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: boolean; onClose: () => void; initialTargetId?: string }) {
-  const { data, addNote, addError, addProject, updateNote, updateProject, updateError, removeNote, linkNote, unlinkNote, linkError, unlinkError } = useData()
+  const { data, addNote, addError, addProject, updateNote, updateProject, updateError, removeNote, linkNote, unlinkNote, linkError, unlinkError, addModule } = useData()
   const router = useRouter()
   const [selection, setSelection] = useState('auto')
   useEffect(() => { if (open) setSelection(initialTargetId || 'auto') }, [open, initialTargetId])
@@ -394,8 +402,12 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
     const raw = previous ? mergeAiDraftChanges(previous, patch) : patch
     if (raw.type !== currentAnalysis.type) throw new Error('Le type doit correspondre à l’analyse.')
     const existing = objects.find((item) => item.id === currentAnalysis.targetId)?.item
-    const base = existing ? { ...existing, ...('name' in existing ? { projectType: existing.type, projectNames: [] } : {}), ...('projectIds' in existing ? { projectNames: data.projects.filter((p) => existing.projectIds.includes(p.id)).map((p) => p.name) } : {}) } : {}
+    const base = existing ? { ...existing, ...('name' in existing ? { projectType: existing.type, projectNames: [], modules: projectLayout(existing.layout) } : {}), ...('projectIds' in existing ? { projectNames: data.projects.filter((p) => existing.projectIds.includes(p.id)).map((p) => p.name) } : {}) } : {}
     validateChanges(raw)
+    if ('modules' in raw) {
+      const layout = existing && 'name' in existing ? projectLayout(existing.layout) : []
+      parseAiModules(raw.modules, { noteIds: data.notes.map((n) => n.id), errorIds: data.errors.map((e) => e.id), moduleIds: layout.map((m) => m.id) })
+    }
     const actions = objectList(raw.noteActions)
     if (Array.isArray(raw.noteActions) && actions.length !== raw.noteActions.length) throw new Error('Action de note invalide.')
     for (const action of actions) {
@@ -454,6 +466,10 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
     setError(null)
   }
 
+  function refTitle(id?: string): string {
+    return data.notes.find((n) => n.id === id)?.title || data.errors.find((e) => e.id === id)?.title || 'introuvable'
+  }
+
   async function callWithJson<T>(request: string, parser: (answer: string) => T): Promise<T> {
     return requestAiJson(request, (value) => window.api.ai.call(value), parser, setAttempt)
   }
@@ -468,7 +484,16 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
       else for (const projectId of projectIds) {
         if (action.action === 'unlink') unlinkNote(projectId, noteId)
         else linkNote(projectId, noteId)
+        if (action.action === 'create' && action.pin === true) addModule(projectId, { id: uid('mod'), type: 'note', refId: noteId })
       }
+    }
+  }
+
+  // A pinned note/error module only renders for items linked to the project.
+  function linkPinned(projectId: string, layout: ProjectModule[]) {
+    for (const m of layout) {
+      if (m.type === 'note' && m.refId) linkNote(projectId, m.refId)
+      if (m.type === 'error' && m.refId) linkError(projectId, m.refId)
     }
   }
 
@@ -496,8 +521,13 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
         if (['actif', 'pause', 'termine', 'aborted'].includes(String(changes.status))) patch.status = changes.status
         if (typeof changes.path === 'string') patch.path = changes.path
         if (typeof changes.folderId === 'string' && data.folders.some((f) => f.id === changes.folderId)) patch.folderId = changes.folderId
-        if ('imageUrl' in changes) patch.layout = (target.item.layout || []).filter((m) => m.type !== 'image').concat(draft.imageUrl ? [{ id: uid('mod'), type: 'image', imageUrl: draft.imageUrl }] : [])
+        const currentLayout = projectLayout(target.item.layout)
+        let layout = 'modules' in changes && draft.modules ? buildLayoutFromAiModules(draft.modules, currentLayout, () => uid('mod')) : currentLayout
+        if ('imageUrl' in changes && !('modules' in changes)) layout = withImageUrl(layout, draft.imageUrl)
+        if ('stack' in changes) layout = withStackModule(layout, draft.stack)
+        if (layout !== currentLayout) patch.layout = layout
         updateProject(target.id, patch)
+        linkPinned(target.id, layout)
       }
       applyNotes(target.id)
       const url = draft.type === 'project' ? `/project?id=${target.id}` : draft.type === 'note' ? `/notes/detail?id=${target.id}` : '/errors'
@@ -529,6 +559,9 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
       router.push('/errors')
       return
     }
+    let createdLayout: ProjectModule[] = draft.modules ? buildLayoutFromAiModules(draft.modules, [], () => uid('mod')) : defaultProjectLayout()
+    if (draft.imageUrl && !createdLayout.some((m) => m.type === 'image' && m.imageUrl === draft.imageUrl)) createdLayout = withImageUrl(createdLayout, draft.imageUrl)
+    createdLayout = withStackModule(createdLayout, draft.stack)
     const project = addProject({
       name: draft.name, type: draft.projectType, category: draft.category,
       platforms: draft.platforms,
@@ -549,10 +582,9 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
       description: draft.description,
       stack: draft.stack,
       links: draft.links.map((link) => ({ id: uid('l'), ...link })),
-      layout: draft.imageUrl
-        ? project.layout.concat([{ id: uid('mod'), type: 'image', imageUrl: draft.imageUrl }])
-        : project.layout,
+      layout: createdLayout,
     })
+    linkPinned(project.id, createdLayout)
     applyNotes(project.id)
     close()
     router.push(`/project?id=${project.id}`)
@@ -603,7 +635,7 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
               <div className="flex justify-end mt-4"><PrimaryButton type="submit"><span className="flex items-center gap-1.5"><SparklesIcon size={13} /> Valider et générer la proposition</span></PrimaryButton></div>
             </form>
           )}
-          {draft && <div className="mt-6 pt-5 border-t border-border"><div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-2">{analysis?.action === 'edit' ? `Modification de ${target?.title || ''}` : 'Élément à créer'}</div><DraftPreview draft={draft} />
+          {draft && <div className="mt-6 pt-5 border-t border-border"><div className="text-[11px] font-bold text-text-faint uppercase tracking-wide mb-2">{analysis?.action === 'edit' ? `Modification de ${target?.title || ''}` : 'Élément à créer'}</div><DraftPreview draft={draft} refTitle={refTitle} />
             {analysis?.action === 'edit' && <><PreviewField label="Champs modifiés" value={Object.keys(changes).filter((key) => !['type', 'noteActions'].includes(key)).join(', ')} /><details className="mt-3"><summary className="cursor-pointer text-[13px]">Voir toutes les modifications</summary><pre className="mt-2 whitespace-pre-wrap text-[12px] overflow-auto">{JSON.stringify(Object.fromEntries(Object.entries(changes).filter(([key]) => !['type', 'noteActions'].includes(key))), null, 2)}</pre></details></>}
             {noteActions.length > 0 && <div className="mt-4 flex flex-col gap-3"><h3 className="font-bold">Notes et liaisons proposées</h3>{noteActions.map((action, index) => <div key={index} className="border border-border rounded-lg p-3"><PreviewField label={action.action === 'delete' ? 'Supprimer partout' : action.action === 'create' ? 'Créer une note' : action.action === 'unlink' ? 'Délier la note' : 'Lier la note'} value={stringValue(action.title) || data.notes.find((n) => n.id === action.noteId)?.title || 'Cet objet'} />{Boolean(action.content) && <Markdown text={String(action.content)} />}<PreviewField label="Projets" value={stringList(action.projectIds).map((id) => id === '$self' ? 'Ce projet' : data.projects.find((p) => p.id === id)?.name || id).join(', ')} /></div>)}</div>}</div>}
           {draft && <form onSubmit={refineDraft} className="mt-5 border-t border-border pt-5 flex flex-col gap-3">
@@ -611,8 +643,8 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
               <h3 className="text-sm font-bold">Ajuster cette proposition{history.length > 0 ? ` · version ${history.length + 1}` : ''}</h3>
               <SecondaryButton onClick={undoRefinement} disabled={loading || !history.length}>Annuler le dernier ajustement</SecondaryButton>
             </div>
-            {history.length > 0 && <details className="text-sm"><summary className="cursor-pointer text-text-muted">Voir la version précédente</summary><div className="mt-3"><DraftPreview draft={history[history.length - 1].draft} /></div></details>}
-            {revisionFields.length > 0 && <p role="status" className="text-xs text-text-muted">Champs ajustés : {revisionFields.map((key) => ({ name: 'nom', title: 'titre', tasks: 'tâches', checklist: 'checklist', deadlines: 'échéances', description: 'description', content: 'contenu', stack: 'stack', links: 'liens', noteActions: 'notes liées', tags: 'tags', projectType: 'type de projet', causes: 'causes', solution: 'solution', projectNames: 'projets liés' } as Record<string, string>)[key] || key).join(', ')}.</p>}
+            {history.length > 0 && <details className="text-sm"><summary className="cursor-pointer text-text-muted">Voir la version précédente</summary><div className="mt-3"><DraftPreview draft={history[history.length - 1].draft} refTitle={refTitle} /></div></details>}
+            {revisionFields.length > 0 && <p role="status" className="text-xs text-text-muted">Champs ajustés : {revisionFields.map((key) => ({ name: 'nom', title: 'titre', tasks: 'tâches', checklist: 'checklist', deadlines: 'échéances', description: 'description', content: 'contenu', stack: 'stack', links: 'liens', noteActions: 'notes liées', modules: 'modules', tags: 'tags', projectType: 'type de projet', causes: 'causes', solution: 'solution', projectNames: 'projets liés' } as Record<string, string>)[key] || key).join(', ')}.</p>}
             <Textarea aria-label="Ajustements du brouillon" value={refinement} onChange={(event) => setRefinement(event.target.value)} placeholder="Ex. Ajoute les tests aux tâches et avance la première échéance. Garde le reste." disabled={loading} className="w-full min-h-24" />
             <p className="text-xs text-text-faint">Le brouillon reste ici jusqu’à validation. Les ajustements conservent les autres détails.</p>
             <div className="flex justify-between gap-2">
@@ -642,7 +674,7 @@ function ProcessingPanel({ step, attempt }: { step: 'analysis' | 'requirements' 
   )
 }
 
-function DraftPreview({ draft }: { draft: AiDraft }) {
+function DraftPreview({ draft, refTitle }: { draft: AiDraft; refTitle: (id?: string) => string }) {
   if (draft.type === 'note') {
     return <div className="rounded-xl border border-border bg-bg p-4">
       <p className="text-[11px] font-bold text-accent-soft-text uppercase tracking-wide mb-1">Note</p>
@@ -687,6 +719,7 @@ function DraftPreview({ draft }: { draft: AiDraft }) {
         </li>)}</ul>
       </details>}
       {draft.deadlines.length > 0 && <div className="mt-3"><PreviewField label="Échéances" value={draft.deadlines.map((item) => `${item.date} · ${item.label}`).join('\n')} /></div>}
+      {draft.modules && <div className="mt-3"><PreviewField label="Modules de la page" value={draft.modules.length ? draft.modules.map((m, i) => `${i + 1}. ${moduleLabel(m, refTitle)}`).join('\n') : 'Aucun (disposition par défaut)'} /></div>}
       {draft.imageUrl && <img src={draft.imageUrl} alt="Illustration proposée" className="mt-3 max-h-48 rounded-lg border border-border object-cover" />}
     </div>
   )
@@ -708,6 +741,36 @@ function createTaskNodes(tasks: AiTask[]): TaskNode[] {
     status: task.status,
     children: createTaskNodes(task.children),
   }))
+}
+
+function projectLayout(layout?: ProjectModule[]): ProjectModule[] {
+  return layout && layout.length > 0 ? layout : defaultProjectLayout()
+}
+
+function moduleLabel(m: AiModuleSpec, refTitle: (id?: string) => string): string {
+  const base = m.type === 'tasks' ? 'Tâches' : MODULE_CATALOG.find((entry) => entry.type === m.type)?.title || m.type
+  if (m.type === 'note' || m.type === 'error') return `${base} · ${refTitle(m.refId)}`
+  if (m.type === 'chart') return `${base}${m.title ? ` « ${m.title} »` : ''} · ${m.chart?.kind === 'line' ? 'courbe' : 'barres'}, ${m.chart?.points.length || 0} valeur(s)`
+  if (m.type === 'image') return `${base}${m.title ? ` « ${m.title} »` : ''}${m.imageUrl ? ' · image' : ''}${m.text ? ' · texte' : ''}`
+  return base
+}
+
+// Set the image without wiping user-written image/text blocks.
+function withImageUrl(layout: ProjectModule[], imageUrl: string): ProjectModule[] {
+  const index = layout.findIndex((m) => m.type === 'image')
+  if (imageUrl) {
+    if (index === -1) return layout.concat([{ id: uid('mod'), type: 'image', title: '', imageUrl, text: '' }])
+    return layout.map((m, i) => (i === index ? { ...m, imageUrl } : m))
+  }
+  return layout
+    .filter((m) => !(m.type === 'image' && !m.title && !m.text?.trim()))
+    .map((m) => (m.type === 'image' ? { ...m, imageUrl: '' } : m))
+}
+
+// A stack filled by the AI is useless if the page has no Stack module to show it.
+function withStackModule(layout: ProjectModule[], stack: string[]): ProjectModule[] {
+  if (!stack.length || layout.some((m) => m.type === 'stack')) return layout
+  return layout.concat([{ id: uid('mod'), type: 'stack' }])
 }
 
 function PreviewField({ label, value }: { label: string; value: string }) {

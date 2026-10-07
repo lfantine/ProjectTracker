@@ -177,6 +177,13 @@ export const ImageIcon = makeIcon(
   </>
 )
 
+export const ChartIcon = makeIcon(
+  <>
+    <path d="M4 4.5v15h16" />
+    <path d="M8 16v-4M12 16V8M16 16v-6" />
+  </>
+)
+
 export const VideoIcon = makeIcon(
   <>
     <rect x="2.5" y="6" width="13" height="12" rx="1.8" />

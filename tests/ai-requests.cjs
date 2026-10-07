@@ -8,7 +8,7 @@ function load(file) {
   vm.runInNewContext(code, context)
   return context.exports
 }
-const { buildAiContext, requestAiJson } = load('renderer/lib/aiCreation.ts')
+const { buildAiContext, requestAiJson, parseAiModules, buildLayoutFromAiModules } = load('renderer/lib/aiCreation.ts')
 const { aiToolErrorMessage } = load('main/aiTool.ts')
 async function main() {
   const data = { projects: [{ id: 'p1', name: 'Target', noteIds: ['n1'], tasks: [{ id: 't1', status: 'fait' }] }, { id: 'p2', name: 'Other', description: 'x'.repeat(100000), noteIds: [] }], notes: [{ id: 'n1', title: 'Linked', content: 'Keep complete', tags: [] }, { id: 'n2', title: 'Other', content: 'x'.repeat(100000), tags: [] }], errors: [] }
@@ -28,6 +28,26 @@ async function main() {
   calls = 0
   await assert.rejects(requestAiJson('request', async () => { calls++; return 'invalid' }, JSON.parse, () => {}), /3 tentatives/)
   assert.equal(calls, 3)
+  // Modules: every type is accepted, references and IDs are checked strictly.
+  const known = { noteIds: ['n1'], errorIds: ['e1'], moduleIds: ['m_img', 'm_tasks'] }
+  const specs = parseAiModules([
+    { id: 'm_tasks', type: 'tasks' }, { type: 'deadlines' }, { type: 'stack' },
+    { id: 'm_img', type: 'image', title: 'Nouveau titre' },
+    { type: 'chart', title: 'Ventes', chart: { kind: 'line', points: [{ label: 'Jan', value: 3 }, { label: 'Fév', value: '4,5' }] } },
+    { type: 'note', refId: 'n1' }, { type: 'error', refId: 'e1' },
+  ], known)
+  assert.equal(specs.length, 7)
+  assert.deepEqual([...specs[4].chart.points.map((p) => p.value)], ['3', '4.5'])
+  for (const bad of [[{ type: 'video' }], [{ type: 'note', refId: 'missing' }], [{ type: 'stack' }, { type: 'stack' }], [{ id: 'ghost', type: 'tasks' }], [{ type: 'image', imageUrl: 'javascript:x' }], [{ type: 'chart', chart: { kind: 'pie', points: [] } }], [{ type: 'chart', chart: { points: [{ label: 'a', value: 'abc' }] } }]]) {
+    assert.throws(() => parseAiModules(bad, known))
+  }
+  // Retained modules keep their ID and untouched fields; removed ones disappear.
+  let n = 0
+  const layout = buildLayoutFromAiModules(specs, [{ id: 'm_img', type: 'image', imageUrl: 'https://x/y.png', text: 'garder' }, { id: 'm_tasks', type: 'tasks' }, { id: 'm_old', type: 'stack' }], () => `new_${++n}`)
+  assert.deepEqual({ ...layout[3] }, { id: 'm_img', type: 'image', imageUrl: 'https://x/y.png', text: 'garder', title: 'Nouveau titre' })
+  assert.equal(layout[0].id, 'm_tasks')
+  assert.ok(!layout.some((m) => m.id === 'm_old'))
+  assert.equal(new Set(layout.map((m) => m.id)).size, layout.length)
   assert.match(aiToolErrorMessage('groqtool', 'missing field `choices`'), /motif exact/)
   console.log('AI context and error regression tests passed')
 }

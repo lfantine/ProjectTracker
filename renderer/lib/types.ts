@@ -62,7 +62,21 @@ export interface ProjectFolder {
   tagFilter?: string[] // smart folders only: match projects with ANY of these tags
 }
 
-export type ModuleType = 'stack' | 'tasks' | 'deadlines' | 'note' | 'error' | 'image'
+export type ModuleType = 'stack' | 'tasks' | 'deadlines' | 'note' | 'error' | 'image' | 'chart'
+
+export type ChartKind = 'bar' | 'line'
+
+export interface ChartPoint {
+  id: string
+  label: string
+  // Kept as typed text so partial input ("-", "1,") survives editing.
+  value: string
+}
+
+export interface ChartConfig {
+  kind: ChartKind
+  points: ChartPoint[]
+}
 
 export interface ProjectModule {
   id: string
@@ -71,6 +85,7 @@ export interface ProjectModule {
   title?: string
   imageUrl?: string
   text?: string
+  chart?: ChartConfig
 }
 
 export function defaultProjectLayout(): ProjectModule[] {

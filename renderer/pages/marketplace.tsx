@@ -22,6 +22,7 @@ function projectHasModule(project: Project, type: ModuleType): boolean {
 
 function newModuleFor(type: ModuleType): ProjectModule {
   if (type === 'image') return { id: uid('mod'), type: 'image', title: '', imageUrl: '', text: '' }
+  if (type === 'chart') return { id: uid('mod'), type: 'chart', title: '', chart: { kind: 'bar', points: [] } }
   return { id: uid('mod'), type }
 }
 
