@@ -75,3 +75,24 @@ main/                 Processus principal Electron (IPC, stockage local, appel d
 renderer/             Interface Next.js (pages, composants, state)
 resources/            Icônes, assets de design, captures d'écran
 ```
+
+## Tests
+
+- `npm test` : tests Vitest / React Testing Library puis les six scripts de régression historiques.
+- `npm run test:unit` : premiers tests de logique, de données et d’interface.
+- `npm run test:watch` : relance Vitest pendant le développement.
+- `npm run typecheck` : vérification TypeScript.
+
+Les tests React Testing Library vérifient les interactions et le DOM dans jsdom ; ils ne valident pas le rendu pixel par pixel. Playwright est installé pour les futurs tests de parcours Electron et de captures visuelles ; aucune suite Playwright n’est encore définie.
+
+Le bouton « Lancer les tests » dans les Réglages exécute quatre vérifications de logique embarquées, sans modifier les données. Il n’exécute pas la suite de développement Vitest. Les tests réels du programme IA et les diagnostics de fichiers seront ajoutés séparément.
+
+## Semaine type
+
+La page « Semaine type » contient un planning global récurrent du lundi au dimanche, sans dates. Cliquer-glisser dans une journée pour dessiner un créneau (pas de 15 minutes, glissement déclenché après 5 pixels de déplacement vertical ; un simple clic désélectionne), puis nommer l’objectif dans la fenêtre qui s’ouvre. Un clic sélectionne le bloc ; Espace ou un double-clic ouvre son édition, Suppr ou Retour arrière le supprime, Échap désélectionne ou ferme la fenêtre. Les créneaux sont enregistrés avec les données locales de l’application. Les chevauchements et les créneaux passant minuit sont refusés ; scinder ces derniers sur deux journées.
+
+La CLI affiche chaque test Vitest, les suites de régression et un bilan coloré avec leur durée. Utiliser `NO_COLOR=1 npm test` pour désactiver les couleurs. Les options Vitest sont transmises, par exemple `npm run test:unit -- -t "onglet"`.
+
+Chaque créneau peut contenir une description, un projet lié, un lieu/adresse, des personnes (une par ligne) et un lien. Ces champs sont optionnels et vides par défaut, et sont conservés avec les données locales.
+
+La couleur de chaque créneau se choisit dans son édition, via un sélecteur ou un code hexadécimal (#RGB / #RRGGBB). Le gris clair par défaut est #d1d5db.

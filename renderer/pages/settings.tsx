@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { TestPanel } from '../components/TestPanel'
 import { AppShell } from '../components/AppShell'
 import { useTheme } from '../lib/theme'
 import type { ThemeMode } from '../lib/types'
@@ -94,6 +95,7 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+      <TestPanel />
     </AppShell>
   )
 }

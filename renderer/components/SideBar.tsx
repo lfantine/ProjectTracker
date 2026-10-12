@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { useTheme } from '../lib/theme'
 import {
   AlertIcon,
+  CalendarIcon,
   ArrowLeftIcon,
   FolderIcon,
   HomeIcon,
@@ -17,6 +18,7 @@ import {
 } from './icons'
 
 const NAV_ITEMS = [
+  { href: '/week', label: 'Semaine type', icon: CalendarIcon, match: (p: string) => p === '/week' },
   { href: '/home', label: 'Home', icon: HomeIcon, match: (p: string) => p === '/home' },
   {
     href: '/projects',
