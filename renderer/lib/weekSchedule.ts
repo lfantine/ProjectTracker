@@ -40,3 +40,7 @@ export function normalizeWeekSlots(raw: unknown): WeekSlot[] {
   }
   return slots
 }
+
+export function normalizeWakeTimes(raw: unknown): string[] {
+  return WEEK_DAYS.map((_, day) => Array.isArray(raw) && typeof raw[day] === 'string' && Number.isFinite(minutes(raw[day])) ? raw[day] : '07:00')
+}

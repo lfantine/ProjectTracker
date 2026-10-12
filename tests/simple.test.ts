@@ -30,3 +30,8 @@ describe('Données : semaine type', () => {
     expect(normalizeWeekSlots([{ ...slot, start: '25:00' }])).toEqual([])
   })
 })
+it('Données : initialise et sauvegarde les heures de réveil sans perdre le planning', () => {
+  expect(normalizeAppData({}).wakeTimes).toEqual(Array(7).fill('07:00'))
+  const saved = normalizeAppData(JSON.parse(JSON.stringify({ wakeTimes: ['08:00', '09:15', 'incorrect'] })))
+  expect(saved.wakeTimes).toEqual(['08:00', '09:15', '07:00', '07:00', '07:00', '07:00', '07:00'])
+})

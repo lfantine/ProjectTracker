@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { DEFAULT_SLOT_COLOR, slotColor, minutes, slotError, WEEK_DAYS, type WeekSlot } from '../lib/weekSchedule'
+import { DEFAULT_SLOT_COLOR, normalizeWakeTimes, slotColor, minutes, slotError, WEEK_DAYS, type WeekSlot } from '../lib/weekSchedule'
 import { uid } from '../lib/helpers'
+import { WakeMarker } from './WakeMarker'
 import { useLocalNow } from '../lib/useLocalNow'
 import { Modal, PrimaryButton, SecondaryButton } from './ui'
 
@@ -12,7 +13,9 @@ function range(selection: Selection) {
   const start = Math.min(selection.anchor, selection.current)
   return { start, end: Math.min(1439, Math.max(start + 15, selection.anchor, selection.current)) }
 }
-export function WeekSchedule({ slots, onChange, projects = [] }: { slots: WeekSlot[]; onChange: (slots: WeekSlot[]) => void; projects?: { id: string; name: string }[] }) {
+export function WeekSchedule({ slots, onChange, projects = [], wakeTimes, onWakeTimesChange }: { slots: WeekSlot[]; onChange: (slots: WeekSlot[]) => void; projects?: { id: string; name: string }[]; wakeTimes?: string[]; onWakeTimesChange?: (times: string[]) => void }) {
+  const [localWakeTimes, setLocalWakeTimes] = useState(() => normalizeWakeTimes(undefined))
+  const wake = normalizeWakeTimes(wakeTimes ?? localWakeTimes)
   const now = useLocalNow()
   const today = now ? (now.getDay() + 6) % 7 : -1
   const currentMinute = now ? now.getHours() * 60 + now.getMinutes() : 0
@@ -173,6 +176,11 @@ export function WeekSchedule({ slots, onChange, projects = [] }: { slots: WeekSl
               grid.current?.focus()
             }}
             onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}>
+            <WakeMarker day={name} value={wake[index]} onChange={(value) => {
+              const next = wake.map((current, day) => day === index ? value : current)
+              if (onWakeTimesChange) onWakeTimesChange(next)
+              else setLocalWakeTimes(next)
+            }} />
             {slots.filter((slot) => slot.day === index).map((slot) => <button key={slot.id} type="button" aria-label={`${slot.title}, ${name}, ${slot.start} à ${slot.end}`} aria-pressed={selected === slot.id} onPointerDown={(event) => event.stopPropagation()} onClick={() => { setSelected(slot.id); destination.current = null }} draggable onDragStart={(event) => {
               setSelected(slot.id); setNotice(''); cancelDrag()
               const offset = Math.max(0, Math.floor((event.clientY - event.currentTarget.getBoundingClientRect().top) / SCALE / 15) * 15)

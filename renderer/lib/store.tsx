@@ -44,6 +44,7 @@ import { TASK_STATUS_ORDER, defaultChecklistStatus, nextChecklistStatus } from '
 interface DataContextValue {
   data: AppData
   setWeekSlots: (slots: WeekSlot[]) => void
+  setWakeTimes: (times: string[]) => void
   loading: boolean
   findProject: (id: string | null | undefined) => Project | undefined
   findNote: (id: string | null | undefined) => Note | undefined
@@ -654,12 +655,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
+  const setWakeTimes = useCallback((wakeTimes: string[]) => setData((s) => ({ ...s, wakeTimes })), [])
   const setWeekSlots = useCallback((weekSlots: WeekSlot[]) => setData((s) => ({ ...s, weekSlots })), [])
 
   const value = useMemo<DataContextValue>(
     () => ({
       data,
       setWeekSlots,
+      setWakeTimes,
       loading,
       findProject,
       findNote,
@@ -709,6 +712,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [
       data,
       setWeekSlots,
+      setWakeTimes,
       loading,
       findProject,
       findNote,

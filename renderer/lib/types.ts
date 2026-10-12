@@ -1,5 +1,5 @@
 import { syncTaskStatuses } from './taskStatus'
-import { normalizeWeekSlots, type WeekSlot } from './weekSchedule'
+import { normalizeWakeTimes, normalizeWeekSlots, type WeekSlot } from './weekSchedule'
 
 export type ProjectStatus = 'actif' | 'pause' | 'termine' | 'aborted'
 export type ProjectType = 'dev' | 'video'
@@ -147,6 +147,7 @@ export interface TrashedNote {
 }
 
 export interface AppData {
+  wakeTimes?: string[]
   weekSlots?: WeekSlot[]
   categories: string[]
   platforms: Record<ProjectType, string[]>
@@ -172,6 +173,7 @@ export function emptyAppData(): AppData {
     errors: [],
     trashedNotes: [],
     weekSlots: [],
+    wakeTimes: normalizeWakeTimes(undefined),
   }
 }
 
@@ -201,5 +203,6 @@ export function normalizeAppData(raw: unknown): AppData {
     errors: data.errors ?? [],
     trashedNotes: data.trashedNotes ?? [],
     weekSlots: normalizeWeekSlots(data.weekSlots),
+    wakeTimes: normalizeWakeTimes(data.wakeTimes),
   }
 }

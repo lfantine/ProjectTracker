@@ -100,3 +100,5 @@ La couleur de chaque créneau se choisit dans son édition, via un sélecteur ou
 Dans l’agenda, ⌘C / ⌘V (Ctrl C / Ctrl V sur Windows) copie et duplique le créneau sélectionné avec ses détails. Cliquer dans une journée avant de coller permet de choisir l’emplacement ; sans destination, le prochain emplacement libre est utilisé. Cette copie reste interne à l’agenda. Glisser-déposer un créneau met à jour son jour et ses horaires, conserve sa durée et affiche un aperçu. Un chevauchement est refusé sans modifier le créneau d’origine.
 
 Le dashboard affiche une colonne « Planning du jour » lorsqu’au moins un objectif de la semaine type est prévu aujourd’hui. Les créneaux sont triés par heure et indiquent « Passé », « En cours » ou « À venir ». Le planning suit l’heure locale, se met à jour automatiquement et permet d’ouvrir l’agenda ou le projet lié.
+
+Une flèche sur le bord gauche de chaque journée indique l’heure de réveil (07:00 par défaut). Glisser verticalement ajuste ce repère par pas de 15 minutes ; les flèches du clavier permettent aussi de l’ajuster. Chaque jour conserve sa propre heure, sauvegardée avec le planning, sans créer ni déplacer d’objectif.
