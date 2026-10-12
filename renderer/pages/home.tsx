@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { AppShell } from '../components/AppShell'
+import { DayPlanning } from '../components/DayPlanning'
+import { useLocalNow } from '../lib/useLocalNow'
 import { ProjectCard } from '../components/ProjectCard'
 import { Spinner, StatusPill } from '../components/ui'
 import { useData } from '../lib/store'
@@ -13,6 +15,8 @@ const DEADLINES_SHOWN = 8
 export default function HomePage() {
   const { data, loading } = useData()
   const router = useRouter()
+  const now = useLocalNow()
+  const hasTodaySlots = !!now && (data.weekSlots || []).some((slot) => slot.day === (now.getDay() + 6) % 7)
   const [tips, setTips] = useState<DailyTip[]>([])
 
   useEffect(() => {
@@ -95,6 +99,8 @@ export default function HomePage() {
 
   return (
     <AppShell title="Home">
+      <div className={hasTodaySlots ? 'grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start' : ''}>
+      <div className="min-w-0">
       <div className="grid grid-cols-4 gap-3.5 mb-8">
         {stats.map((s) => (
           <div key={s.label} className="bg-surface border border-border rounded-xl px-4.5 py-4">
@@ -203,6 +209,9 @@ export default function HomePage() {
           </div>
         </div>
       )}
+      </div>
+      <DayPlanning slots={data.weekSlots || []} now={now} projects={data.projects} onOpenAgenda={() => void router.push('/week')} onOpenProject={(id) => void router.push(`/project?id=${encodeURIComponent(id)}`)} />
+      </div>
     </AppShell>
   )
 }

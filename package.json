@@ -14,13 +14,16 @@
     "typecheck": "node tests/typecheck.cjs",
     "test:legacy": "node scripts/test-runner.mjs legacy",
     "test:unit": "node scripts/test-runner.mjs unit",
-    "test:watch": "node scripts/test-runner.mjs watch"
+    "test:watch": "node scripts/test-runner.mjs watch",
+    "try-deploy": "tsx scripts/test-and-deploy.ts"
   },
   "dependencies": {
     "electron-serve": "^3.0.0",
     "electron-store": "^11.0.2",
+    "mock-stdin": "^1.0.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",

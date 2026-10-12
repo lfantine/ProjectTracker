@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { WeekSchedule } from '../renderer/components/WeekSchedule'
 import type { WeekSlot } from '../renderer/lib/weekSchedule'
-beforeAll(() => vi.stubGlobal('PointerEvent', MouseEvent))
+beforeAll(() => { vi.stubGlobal('PointerEvent', MouseEvent); vi.stubGlobal('DragEvent', MouseEvent) })
 afterAll(() => vi.unstubAllGlobals())
 const lecture: WeekSlot = { id: 'a', title: 'Lecture', day: 0, start: '09:00', end: '10:00' }
 function Schedule({ initial = [] }: { initial?: WeekSlot[] }) { const [slots, setSlots] = useState(initial); return <WeekSchedule slots={slots} onChange={setSlots} projects={[{ id: 'project-1', name: 'Mon projet' }]} /> }
@@ -106,6 +106,8 @@ it('Interface : les détails sont optionnels, vides au départ et conservés apr
 it('Interface : couleur grise par défaut, code hexadécimal validé et conservé', async () => {
   const user = userEvent.setup(); render(<Schedule initial={[lecture]} />)
   const slot = screen.getByRole('button', { name: /Lecture, Lundi/ })
+  expect(slot).toHaveStyle({ backgroundColor: '#d1d5db99' })
+  await user.click(slot)
   expect(slot).toHaveStyle({ backgroundColor: '#d1d5db' })
   await user.click(slot); await user.keyboard(' ')
   expect(screen.getByLabelText('Code couleur')).toHaveValue('#d1d5db')
@@ -120,4 +122,82 @@ it('Interface : couleur grise par défaut, code hexadécimal validé et conserv�
   await user.click(slot); await user.keyboard(' ')
   expect(screen.getByLabelText('Code couleur')).toHaveValue('#336699')
   expect(screen.getByLabelText('Couleur')).toHaveValue('#336699')
+})
+
+it('Interface : indique le jour et l’heure locaux et se met à jour après minuit', () => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date(2026, 9, 12, 23, 59, 45))
+  const view = render(<Schedule />)
+  try {
+    expect(screen.getByRole('img', { name: 'Heure actuelle : Lundi 23:59' })).toHaveStyle({ top: '1151.2px' })
+    expect(screen.getByText('Lundi').closest('[aria-current]')).toHaveAttribute('aria-current', 'date')
+    act(() => { vi.advanceTimersByTime(30_000) })
+    expect(screen.queryByRole('img', { name: 'Heure actuelle : Lundi 23:59' })).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Heure actuelle : Mardi 00:00' })).toHaveStyle({ top: '0px' })
+    expect(screen.getByText('Mardi').closest('[aria-current]')).toHaveAttribute('aria-current', 'date')
+  } finally { view.unmount(); vi.useRealTimers() }
+})
+it('Interface : copie avec Command et colle à une destination choisie en conservant les détails', async () => {
+  const user = userEvent.setup(); render(<Schedule initial={[{ ...lecture, description: 'À lire', color: '#336699', people: ['Alice'] }]} />)
+  await user.click(screen.getByRole('button', { name: /Lecture, Lundi/ }))
+  await user.keyboard('{Meta>}c{/Meta}')
+  const day = screen.getByLabelText('Créneaux du Mardi')
+  fireEvent.pointerDown(day, { button: 0, clientY: 480 }); fireEvent.pointerUp(day, { clientY: 480 })
+  await user.keyboard('{Meta>}v{/Meta}')
+  const copy = screen.getByRole('button', { name: 'Lecture, Mardi, 10:00 à 11:00' })
+  expect(screen.getByRole('button', { name: /Lecture, Lundi/ })).toBeInTheDocument()
+  await user.click(copy); await user.keyboard(' ')
+  expect(screen.getByLabelText('Description')).toHaveValue('À lire')
+  expect(screen.getByLabelText('Code couleur')).toHaveValue('#336699')
+  expect(screen.getByLabelText('Personnes')).toHaveValue('Alice')
+})
+it('Interface : Ctrl C / V trouve une place libre et évite les chevauchements', async () => {
+  const user = userEvent.setup(); render(<Schedule initial={[lecture]} />)
+  await user.click(screen.getByRole('button', { name: /Lecture, Lundi/ }))
+  await user.keyboard('{Control>}c{/Control}{Control>}v{/Control}')
+  expect(screen.getByRole('button', { name: 'Lecture, Lundi, 10:00 à 11:00' })).toBeInTheDocument()
+  const day = screen.getByLabelText('Créneaux du Lundi')
+  fireEvent.pointerDown(day, { button: 0, clientY: 432 }); fireEvent.pointerUp(day, { clientY: 432 })
+  await user.keyboard('{Control>}v{/Control}')
+  expect(screen.getByRole('status')).toHaveTextContent('chevauche')
+  expect(screen.getAllByRole('button', { name: /Lecture, Lundi/ })).toHaveLength(2)
+})
+it('Interface : déplace un créneau vers un autre jour, conserve la durée et refuse un conflit', () => {
+  render(<Schedule initial={[lecture, { ...lecture, id: 'b', title: 'Sport', day: 1, start: '12:00', end: '13:00' }]} />)
+  const slot = screen.getByRole('button', { name: /Lecture, Lundi/ })
+  const target = screen.getByLabelText('Créneaux du Mardi')
+  const transfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' }
+  const rect = vi.spyOn(slot, 'getBoundingClientRect').mockReturnValue({ top: 432 } as DOMRect)
+  fireEvent.dragStart(slot, { clientY: 432, dataTransfer: transfer })
+  fireEvent.dragOver(target, { clientY: 480, dataTransfer: transfer })
+  expect(screen.getByLabelText('Aperçu du déplacement')).toHaveTextContent('10:00 – 11:00')
+  fireEvent.drop(target, { clientY: 480, dataTransfer: transfer })
+  rect.mockRestore()
+  expect(screen.queryByRole('button', { name: /Lecture, Lundi/ })).not.toBeInTheDocument()
+  const moved = screen.getByRole('button', { name: 'Lecture, Mardi, 10:00 à 11:00' })
+  const nextRect = vi.spyOn(moved, 'getBoundingClientRect').mockReturnValue({ top: 480 } as DOMRect)
+  fireEvent.dragStart(moved, { clientY: 480, dataTransfer: transfer })
+  fireEvent.drop(target, { clientY: 576, dataTransfer: transfer })
+  nextRect.mockRestore()
+  expect(screen.getByRole('status')).toHaveTextContent('chevauche')
+  expect(screen.getByRole('button', { name: 'Lecture, Mardi, 10:00 à 11:00' })).toBeInTheDocument()
+})
+it('Interface : garde le titre et les horaires visibles au défilement sans dépasser le créneau', async () => {
+  render(<Schedule initial={[{ ...lecture, end: '14:00' }]} />)
+  const slot = screen.getByRole('button', { name: /Lecture, Lundi/ })
+  const label = slot.querySelector<HTMLElement>('[data-week-slot-label]')!
+  let top = -60
+  const slotRect = vi.spyOn(slot, 'getBoundingClientRect').mockImplementation(() => ({ top, height: 240 } as DOMRect))
+  const labelRect = vi.spyOn(label, 'getBoundingClientRect').mockReturnValue({ height: 32 } as DOMRect)
+  const scroll = async () => act(async () => { fireEvent.scroll(window); await new Promise((resolve) => setTimeout(resolve, 30)) })
+  try {
+    await scroll()
+    expect(label.style.transform).toBe('translateY(60px)')
+    top = -230
+    await scroll()
+    expect(label.style.transform).toBe('translateY(204px)')
+    top = 100
+    await scroll()
+    expect(label.style.transform).toBe('translateY(0px)')
+  } finally { slotRect.mockRestore(); labelRect.mockRestore() }
 })
