@@ -1,5 +1,6 @@
+import { normalizeWeekPresets, type WeekPreset } from './weekPresets'
 import { syncTaskStatuses } from './taskStatus'
-import { normalizeWakeTimes, normalizeWeekSlots, type WeekSlot } from './weekSchedule'
+import { type WeekSlot } from './weekSchedule'
 
 export type ProjectStatus = 'actif' | 'pause' | 'termine' | 'aborted'
 export type ProjectType = 'dev' | 'video'
@@ -147,6 +148,8 @@ export interface TrashedNote {
 }
 
 export interface AppData {
+  weekPresets?: WeekPreset[]
+  activeWeekPresetId?: string
   wakeTimes?: string[]
   weekSlots?: WeekSlot[]
   categories: string[]
@@ -172,8 +175,7 @@ export function emptyAppData(): AppData {
     notes: [],
     errors: [],
     trashedNotes: [],
-    weekSlots: [],
-    wakeTimes: normalizeWakeTimes(undefined),
+    ...normalizeWeekPresets(undefined, undefined, [], undefined),
   }
 }
 
@@ -202,7 +204,6 @@ export function normalizeAppData(raw: unknown): AppData {
     notes: data.notes ?? [],
     errors: data.errors ?? [],
     trashedNotes: data.trashedNotes ?? [],
-    weekSlots: normalizeWeekSlots(data.weekSlots),
-    wakeTimes: normalizeWakeTimes(data.wakeTimes),
+    ...normalizeWeekPresets(data.weekPresets, data.activeWeekPresetId, data.weekSlots, data.wakeTimes),
   }
 }

@@ -1,3 +1,4 @@
+import { createWeekPreset, renameWeekPreset, selectWeekPreset, updateActiveWeek } from './weekPresets'
 import React, {
   createContext,
   useCallback,
@@ -45,6 +46,9 @@ interface DataContextValue {
   data: AppData
   setWeekSlots: (slots: WeekSlot[]) => void
   setWakeTimes: (times: string[]) => void
+  selectWeekPreset: (id: string) => void
+  createWeekPreset: (name: string, copy: boolean) => void
+  renameWeekPreset: (name: string) => void
   loading: boolean
   findProject: (id: string | null | undefined) => Project | undefined
   findNote: (id: string | null | undefined) => Note | undefined
@@ -655,14 +659,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
-  const setWakeTimes = useCallback((wakeTimes: string[]) => setData((s) => ({ ...s, wakeTimes })), [])
-  const setWeekSlots = useCallback((weekSlots: WeekSlot[]) => setData((s) => ({ ...s, weekSlots })), [])
+  const selectPreset = useCallback((id: string) => setData((s) => selectWeekPreset(s, id)), [])
+  const createPreset = useCallback((name: string, copy: boolean) => setData((s) => createWeekPreset(s, uid('week-preset'), name, copy)), [])
+  const renamePreset = useCallback((name: string) => setData((s) => renameWeekPreset(s, name)), [])
+  const setWakeTimes = useCallback((wakeTimes: string[]) => setData((s) => updateActiveWeek(s, { wakeTimes })), [])
+  const setWeekSlots = useCallback((weekSlots: WeekSlot[]) => setData((s) => updateActiveWeek(s, { slots: weekSlots })), [])
 
   const value = useMemo<DataContextValue>(
     () => ({
       data,
       setWeekSlots,
       setWakeTimes,
+      selectWeekPreset: selectPreset,
+      createWeekPreset: createPreset,
+      renameWeekPreset: renamePreset,
       loading,
       findProject,
       findNote,
@@ -713,6 +723,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       data,
       setWeekSlots,
       setWakeTimes,
+      selectPreset,
+      createPreset,
+      renamePreset,
       loading,
       findProject,
       findNote,

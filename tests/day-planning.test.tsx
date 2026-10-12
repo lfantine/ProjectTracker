@@ -33,3 +33,21 @@ it('Dashboard : masque la colonne les jours sans objectif', () => {
   rerender(<DayPlanning slots={slots} now={null} projects={[]} onOpenAgenda={() => {}} onOpenProject={() => {}} />)
   expect(screen.queryByText('Planning du jour')).not.toBeInTheDocument()
 })
+
+it('Dashboard : place le repère dans le créneau actuel puis dans les intervalles libres', () => {
+  const props = { slots, projects: [], onOpenAgenda: () => {}, onOpenProject: () => {} }
+  const view = render(<DayPlanning {...props} now={now} />)
+  const running = screen.getByRole('button', { name: 'Travail' }).closest('li')!
+  expect(within(running).getByRole('img', { name: 'Heure actuelle : 10:30' })).toBeInTheDocument()
+  expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  expect(screen.getByText('90 min restantes')).toBeInTheDocument()
+  view.rerender(<DayPlanning {...props} now={new Date(2026, 9, 12, 15, 0)} />)
+  expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  const marker = screen.getByRole('img', { name: 'Heure actuelle : 15:00' })
+  expect(marker.compareDocumentPosition(screen.getByRole('button', { name: 'Sport' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(marker.compareDocumentPosition(screen.getByRole('button', { name: 'Travail' })) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  view.rerender(<DayPlanning {...props} now={new Date(2026, 9, 12, 7, 0)} />)
+  expect(screen.getByRole('img', { name: 'Heure actuelle : 07:00' }).compareDocumentPosition(screen.getByRole('button', { name: 'Lecture' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  view.rerender(<DayPlanning {...props} now={new Date(2026, 9, 12, 20, 0)} />)
+  expect(screen.getByRole('img', { name: 'Heure actuelle : 20:00' }).compareDocumentPosition(screen.getByRole('button', { name: 'Sport' })) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+})

@@ -102,3 +102,5 @@ Dans l’agenda, ⌘C / ⌘V (Ctrl C / Ctrl V sur Windows) copie et duplique le 
 Le dashboard affiche une colonne « Planning du jour » lorsqu’au moins un objectif de la semaine type est prévu aujourd’hui. Les créneaux sont triés par heure et indiquent « Passé », « En cours » ou « À venir ». Le planning suit l’heure locale, se met à jour automatiquement et permet d’ouvrir l’agenda ou le projet lié.
 
 Une flèche sur le bord gauche de chaque journée indique l’heure de réveil (07:00 par défaut). Glisser verticalement ajuste ce repère par pas de 15 minutes ; les flèches du clavier permettent aussi de l’ajuster. Chaque jour conserve sa propre heure, sauvegardée avec le planning, sans créer ni déplacer d’objectif.
+
+Le menu « Semaine active » permet de conserver plusieurs semaines types nommées. « Nouvelle semaine » crée un planning vide ; « Dupliquer » copie les créneaux, leurs détails et les heures de réveil ; « Renommer » change le nom du preset actif. Les modifications sont sauvegardées automatiquement dans ce preset. La semaine déjà enregistrée est migrée en « Ma semaine », et le dashboard utilise toujours la semaine active.
