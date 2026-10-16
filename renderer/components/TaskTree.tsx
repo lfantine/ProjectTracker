@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
+import { CollapsedTaskStack } from './CollapsedTaskStack'
 import type { TaskNode, TaskStatus } from '../lib/types'
 import { TASK_STATUS_LABEL, statusTone } from '../lib/constants'
 import { flattenTasks } from '../lib/helpers'
+import { useTaskCollapse } from '../lib/useTaskCollapse'
 import type { TaskDropPosition } from '../lib/helpers'
 import { Input, PrimaryButton, StatusPill } from './ui'
 import { GripIcon, PlusIcon, TrashIcon } from './icons'
@@ -25,7 +27,7 @@ export function TaskTree({
   onMove?: (draggedId: string, targetId: string, position: TaskDropPosition) => void
   visibleStatuses?: TaskStatus[]
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [collapsed, setCollapsed] = useTaskCollapse(tasks)
   const [newName, setNewName] = useState('')
   const [addingTop, setAddingTop] = useState(false)
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null)
@@ -42,7 +44,7 @@ export function TaskTree({
   }
   visit(tasks, [])
   const matching = visibleStatuses ? allFlat.filter((f) => visibleStatuses.includes(f.node.status)) : allFlat
-  const flat = matching.filter(({ node }) => !(ancestors.get(node.id) || []).some((parent) => collapsed.has(parent.id)))
+  const flat = matching.filter(({ node }) => !(ancestors.get(node.id) || []).some((parent) => collapsed.has(parent.id) && (!visibleStatuses || visibleStatuses.includes(parent.status))))
 
   function resetDrag() {
     setDragId(null)
@@ -56,7 +58,7 @@ export function TaskTree({
           Aucune tâche ne correspond au filtre.
         </p>
       )}
-      <div className="flex flex-col">
+      <div className="isolate flex flex-col">
         {flat.map(({ node, depth }) => {
           const isCard = depth === 0
           const isDragging = dragId === node.id
@@ -106,12 +108,13 @@ export function TaskTree({
                 }}
                 onDragEnd={resetDrag}
                 style={{ marginLeft: Math.min(depth, 6) * 18 }}
-                className={`group flex items-center gap-3 transition-all ${
+                className={`relative group flex items-center ${collapsed.has(node.id) && node.children.length ? 'mb-4! bg-surface border border-border rounded-xl' : ''}  gap-3 transition-all ${
                   isCard
                     ? 'px-4 py-3 mb-2 bg-surface rounded-xl border border-border hover:border-accent-soft hover:shadow-sm'
                     : 'px-3 py-2 mb-1 border-l-2 border-border rounded-r-lg hover:bg-surface-hover'
                 } ${onOpenDetail ? 'cursor-pointer' : ''} ${isDragging ? 'opacity-40' : ''} ${dropClasses}`}
               >
+                {collapsed.has(node.id) && node.children.length > 0 && <CollapsedTaskStack count={node.children.length} />}
                 {node.children.length > 0 ? (
                   <button
                     type="button"
@@ -121,9 +124,9 @@ export function TaskTree({
                       e.stopPropagation()
                       setCollapsed((previous) => { const next = new Set(previous); if (next.has(node.id)) next.delete(node.id); else next.add(node.id); return next })
                     }}
-                    className="text-text-faint w-4 flex-shrink-0 cursor-pointer hover:text-text"
+                    className="text-[11px] font-semibold text-text-muted rounded px-1.5 py-1 flex-shrink-0 cursor-pointer hover:bg-accent-soft hover:text-accent-soft-text"
                   >
-                    {collapsed.has(node.id) ? '▸' : '▾'}
+                    {collapsed.has(node.id) ? '▸ Déplier' : '▾ Replier'}
                   </button>
                 ) : (
                   <span className="w-4 flex-shrink-0 text-text-faint" aria-hidden="true">{depth > 0 ? '↳' : '·'}</span>
@@ -153,8 +156,7 @@ export function TaskTree({
                     </span>
                   )}
                 </span>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <StatusPill
+                <StatusPill
                     label={TASK_STATUS_LABEL[node.status]}
                     tone={statusTone(node.status)}
                     onClick={node.children.length ? undefined : (e) => {
@@ -162,6 +164,7 @@ export function TaskTree({
                       onCycleStatus(node.id)
                     }}
                   />
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -170,7 +173,7 @@ export function TaskTree({
                       setSubName('')
                     }}
                     className="p-1.5 border-none bg-transparent text-text-faint hover:text-accent cursor-pointer rounded-md transition-colors"
-                    title="Ajouter une sous-tâche"
+                    title="Ajouter une sous-tâche" aria-label="Ajouter une sous-tâche"
                   >
                     <PlusIcon size={14} />
                   </button>

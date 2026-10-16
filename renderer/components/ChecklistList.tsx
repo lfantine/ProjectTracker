@@ -180,7 +180,7 @@ function EvenementGroup({
                 e.stopPropagation()
                 onOpen(c.id)
               }}
-              className="absolute top-1.5 right-1.5 border-none bg-transparent text-text-faint cursor-pointer p-1 rounded hover:bg-surface-hover"
+              className="absolute top-1.5 right-1.5 border-none bg-transparent text-text-faint cursor-pointer p-1 rounded hover:bg-surface-hover" title="Modifier cet élément" aria-label="Modifier cet élément"
             >
               <PencilIcon size={12} />
             </button>
@@ -257,7 +257,7 @@ function ProjetGroup({
                 e.stopPropagation()
                 onRemove(c.id)
               }}
-              className="border-none bg-transparent text-text-faint cursor-pointer"
+              className="border-none bg-transparent text-text-faint cursor-pointer" title="Supprimer cet élément" aria-label="Supprimer cet élément"
             >
               <TrashIcon size={14} />
             </button>
@@ -304,7 +304,7 @@ function GeneriqueGroup({
                 e.stopPropagation()
                 onRemove(c.id)
               }}
-              className="border-none bg-transparent text-text-faint cursor-pointer"
+              className="border-none bg-transparent text-text-faint cursor-pointer" title="Supprimer cet élément" aria-label="Supprimer cet élément"
             >
               <TrashIcon size={14} />
             </button>
@@ -479,7 +479,7 @@ function ChecklistItemModal({
       <button
         type="button"
         onClick={onRemove}
-        className="flex items-center gap-1.5 border-none bg-transparent text-danger text-xs font-semibold cursor-pointer mt-4"
+        className="flex items-center gap-1.5 border-none bg-transparent text-danger text-xs font-semibold cursor-pointer mt-4" title="Supprimer cet élément" aria-label="Supprimer cet élément"
       >
         <TrashIcon size={13} /> Supprimer cet élément
       </button>

@@ -1,0 +1,433 @@
+{
+  "valid/combined.json": {
+    "ok": true,
+    "files": [
+      "planner.html",
+      "minor.html",
+      "today.html"
+    ],
+    "dependencies": {},
+    "permissions": {
+      "core": {
+        "projects": [
+          "read"
+        ]
+      },
+      "network": [],
+      "exports": []
+    }
+  },
+  "valid/features.json": {
+    "ok": true,
+    "files": [
+      "summary.html"
+    ],
+    "dependencies": {
+      "example.week-like": "^1.2.0"
+    },
+    "permissions": {
+      "core": {
+        "projects": [
+          "read"
+        ]
+      },
+      "network": [],
+      "exports": [
+        {
+          "package": "example.week-like",
+          "export": "slots"
+        }
+      ]
+    }
+  },
+  "valid/major-only.json": {
+    "ok": true,
+    "files": [
+      "board/index.html"
+    ],
+    "dependencies": {},
+    "permissions": {
+      "core": {},
+      "network": [],
+      "exports": []
+    }
+  },
+  "valid/minor-only.json": {
+    "ok": true,
+    "files": [
+      "quote.html"
+    ],
+    "dependencies": {},
+    "permissions": {
+      "core": {
+        "projects": [
+          "read"
+        ]
+      },
+      "network": [],
+      "exports": []
+    }
+  },
+  "valid/theme.json": {
+    "ok": true,
+    "files": [
+      "theme.json"
+    ],
+    "dependencies": {
+      "core": "^1.0.0"
+    },
+    "permissions": {
+      "core": {},
+      "network": [],
+      "exports": []
+    }
+  },
+  "valid/widget-only.json": {
+    "ok": true,
+    "files": [
+      "migrations.html",
+      "clock.html"
+    ],
+    "dependencies": {},
+    "permissions": {
+      "core": {},
+      "network": [
+        "https://api.example.com",
+        "https://time.example.org:8443"
+      ],
+      "exports": []
+    }
+  },
+  "invalid/absolute-path.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].entry",
+        "message": "chemin relatif invalide"
+      }
+    ]
+  },
+  "invalid/backslash-path.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].entry",
+        "message": "chemin relatif invalide"
+      }
+    ]
+  },
+  "invalid/bad-host-api.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "hostApi",
+        "message": "contrainte SemVer invalide"
+      }
+    ]
+  },
+  "invalid/bad-version.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "version",
+        "message": "version SemVer invalide"
+      }
+    ]
+  },
+  "invalid/choice-default-not-in-options.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].config.fields[1].default",
+        "message": "valeur par défaut absente des choix"
+      }
+    ]
+  },
+  "invalid/core-id.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "id",
+        "message": "identité réservée au socle"
+      }
+    ]
+  },
+  "invalid/credentials-origin.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.network[0]",
+        "message": "identifiants interdits dans l’origine"
+      }
+    ]
+  },
+  "invalid/duplicate-contribution.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[3].id",
+        "message": "identifiant de contribution répété"
+      },
+      {
+        "path": "contributions[0].integrations[1]",
+        "message": "« today » doit déclarer major: « planner »"
+      }
+    ]
+  },
+  "invalid/entry-not-html.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].entry",
+        "message": "extension attendue : .html"
+      }
+    ]
+  },
+  "invalid/export-without-dependency.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.exports[1]",
+        "message": "le package fournisseur doit être déclaré en dépendance"
+      }
+    ]
+  },
+  "invalid/extension-target-mismatch.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "dependencies.example.week-like",
+        "message": "contrainte différente de celle de la cible"
+      }
+    ]
+  },
+  "invalid/extension-with-contributions.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "(racine)",
+        "message": "Unrecognized key: \"contributions\""
+      }
+    ]
+  },
+  "invalid/features-duplicate.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "features",
+        "message": "fonctionnalité répétée"
+      }
+    ]
+  },
+  "invalid/features-unknown-type.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "extensionType",
+        "message": "type d’extension attendu : theme ou features"
+      }
+    ]
+  },
+  "invalid/http-origin.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.network[0]",
+        "message": "seul HTTPS est autorisé"
+      }
+    ]
+  },
+  "invalid/incomplete-migration-steps.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "migrations.steps[0]",
+        "message": "étape au-delà de storageVersion"
+      }
+    ]
+  },
+  "invalid/ip-origin.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.network[0]",
+        "message": "adresse IP littérale interdite"
+      }
+    ]
+  },
+  "invalid/localhost-origin.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.network[0]",
+        "message": "hôte local interdit"
+      }
+    ]
+  },
+  "invalid/major-without-integrations.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].integrations",
+        "message": "Invalid input: expected array, received undefined"
+      }
+    ]
+  },
+  "invalid/manifest-version-2.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "manifestVersion",
+        "message": "version de format non prise en charge (attendu : 1)"
+      }
+    ]
+  },
+  "invalid/minor-wrong-major.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].integrations[0]",
+        "message": "« project-slots » doit déclarer major: « planner »"
+      },
+      {
+        "path": "contributions[1].major",
+        "message": "majeur « today » inconnu"
+      }
+    ]
+  },
+  "invalid/missing-integration.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].integrations[2]",
+        "message": "contribution « ghost » inconnue"
+      }
+    ]
+  },
+  "invalid/non-reciprocal-minor.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[1].major",
+        "message": "« planner » doit lister « project-slots » dans integrations"
+      }
+    ]
+  },
+  "invalid/origin-with-path.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.network[0]",
+        "message": "une origine ne contient ni chemin, ni requête, ni fragment"
+      }
+    ]
+  },
+  "invalid/package-without-contributions.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions",
+        "message": "Too small: expected array to have >=1 items"
+      }
+    ]
+  },
+  "invalid/path-traversal.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[0].entry",
+        "message": "chemin relatif invalide"
+      }
+    ]
+  },
+  "invalid/self-dependency.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "dependencies.example.week-like",
+        "message": "un package ne dépend pas de lui-même"
+      }
+    ]
+  },
+  "invalid/slot-on-minor.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "slots[0].contribution",
+        "message": "un slot est porté par un majeur du package"
+      }
+    ]
+  },
+  "invalid/theme-with-js.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "theme",
+        "message": "extension attendue : .json"
+      }
+    ]
+  },
+  "invalid/theme-without-target.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "target",
+        "message": "Invalid input: expected object, received undefined"
+      }
+    ]
+  },
+  "invalid/unknown-core-action.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.core.projects[0]",
+        "message": "Invalid option: expected one of \"read\"|\"write\""
+      }
+    ]
+  },
+  "invalid/unknown-core-resource.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.core",
+        "message": "Unrecognized key: \"files\""
+      }
+    ]
+  },
+  "invalid/unknown-field.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "(racine)",
+        "message": "Unrecognized key: \"script\""
+      }
+    ]
+  },
+  "invalid/uppercase-id.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "id",
+        "message": "identifiant invalide (minuscules, chiffres, points, tirets)"
+      }
+    ]
+  },
+  "invalid/widget-size-below-min.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "contributions[2].size",
+        "message": "taille par défaut inférieure au minimum"
+      }
+    ]
+  },
+  "invalid/wildcard-origin.json": {
+    "ok": false,
+    "issues": [
+      {
+        "path": "permissions.network[0]",
+        "message": "joker interdit"
+      }
+    ]
+  }
+}

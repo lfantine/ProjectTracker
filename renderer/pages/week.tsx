@@ -1,11 +1,9 @@
+import { useState } from 'react'
 import { AppShell } from '../components/AppShell'
-import { WeekSchedule } from '../components/WeekSchedule'
-import { WeekPresetPicker } from '../components/WeekPresetPicker'
-import { useData } from '../lib/store'
+import { ModuleHost } from '../components/ModuleHost'
+
+// Compatibility URL only: all business state now belongs to the package/SDK.
 export default function WeekPage() {
-  const { data, loading, setWeekSlots, setWakeTimes, selectWeekPreset, createWeekPreset, renameWeekPreset } = useData()
-  return <AppShell title="Semaine type">{loading ? <p>Chargement…</p> : <>
-    <WeekPresetPicker presets={data.weekPresets || []} activeId={data.activeWeekPresetId} onSelect={selectWeekPreset} onCreate={createWeekPreset} onRename={renameWeekPreset} />
-    <WeekSchedule key={data.activeWeekPresetId} slots={data.weekSlots || []} onChange={setWeekSlots} projects={data.projects} wakeTimes={data.wakeTimes} onWakeTimesChange={setWakeTimes} />
-  </>}</AppShell>
+  const [title, setTitle] = useState<string | undefined>()
+  return <AppShell title={title ?? 'Semaine type'}><ModuleHost onTitle={setTitle} request={{ kind: 'major', major: { packageId: 'builtin.week', contributionId: 'planner' } }} /></AppShell>
 }

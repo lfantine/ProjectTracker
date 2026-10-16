@@ -8,3 +8,6 @@ next-env.d.ts
 # build
 /app
 /dist
+
+# notes personnelles (plan de refonte, journal) : jamais versionnées
+/PLANS

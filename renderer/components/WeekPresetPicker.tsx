@@ -45,7 +45,7 @@ export function WeekPresetPicker({ presets, activeId, onSelect, onCreate, onRena
           <button type="button" role="menuitem" onClick={() => open('new')} className="flex items-center gap-2.5 w-full text-left px-3 py-2.5 text-sm rounded-lg cursor-pointer text-text hover:bg-surface2 focus:bg-surface2 outline-none"><PlusIcon size={15} className="text-text-muted" />Nouvelle semaine</button>
           <button type="button" role="menuitem" onClick={() => open('copy')} className="flex items-center gap-2.5 w-full text-left px-3 py-2.5 text-sm rounded-lg cursor-pointer text-text hover:bg-surface2 focus:bg-surface2 outline-none"><span aria-hidden="true" className="w-[15px] text-text-muted text-lg leading-none">⧉</span>Dupliquer</button>
           <div className="h-px bg-border my-1" role="separator" />
-          <button type="button" role="menuitem" onClick={() => open('rename')} className="flex items-center gap-2.5 w-full text-left px-3 py-2.5 text-sm rounded-lg cursor-pointer text-text hover:bg-surface2 focus:bg-surface2 outline-none"><PencilIcon size={15} className="text-text-muted" />Renommer</button>
+          <button type="button" role="menuitem" onClick={() => open('rename')} className="flex items-center gap-2.5 w-full text-left px-3 py-2.5 text-sm rounded-lg cursor-pointer text-text hover:bg-surface2 focus:bg-surface2 outline-none" title="Renommer la semaine type" aria-label="Renommer"><PencilIcon size={15} className="text-text-muted" />Renommer</button>
         </div>}
       </div>
     </div>

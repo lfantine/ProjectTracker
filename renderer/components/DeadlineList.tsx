@@ -37,11 +37,11 @@ export function DeadlineList({
             <StatusPill label={LABEL[d.status]} tone={statusTone(d.status)} onClick={() => onToggle(d.id)} />
             <span className="text-sm text-text flex-1">{d.label}</span>
             <span className="text-[11.5px] text-text-faint font-mono">{fmtDate(d.date)}</span>
-            {onRemove && (
+            {editing && onRemove && (
               <button
                 type="button"
                 onClick={() => onRemove(d.id)}
-                className="border-none bg-transparent text-text-faint cursor-pointer"
+                className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1 flex-shrink-0" title="Supprimer cette échéance" aria-label={`Supprimer l’échéance ${d.label}`}
               >
                 <TrashIcon size={14} />
               </button>

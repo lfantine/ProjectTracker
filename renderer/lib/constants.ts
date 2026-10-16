@@ -1,5 +1,4 @@
 import type {
-  ChecklistItem,
   ChecklistStatus,
   ChecklistType,
   ModuleType,
@@ -29,7 +28,7 @@ export const PROJECT_TYPE_LABEL: Record<ProjectType, string> = {
 }
 export const PROJECT_TYPE_ORDER: ProjectType[] = ['dev', 'video']
 
-export const TASK_STATUS_ORDER: TaskStatus[] = ['a_faire', 'en_cours', 'fait']
+export { TASK_STATUS_ORDER } from '../../shared/tasks'
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   a_faire: 'À faire',
   en_cours: 'En cours',
@@ -52,12 +51,7 @@ export const CHK_GROUP_LABEL: Record<ChecklistType, string> = {
 
 // Status pipeline differs by element type: a purchase isn't "à faire/fait",
 // it's "à acheter/commandé/acheté", an event is "à venir/fait/annulé", etc.
-export const CHK_STATUS_BY_TYPE: Record<ChecklistType, ChecklistStatus[]> = {
-  generique: ['a_faire', 'en_cours', 'fait', 'bloque'],
-  materiel: ['a_acheter', 'commande', 'achete'],
-  evenement: ['a_venir', 'fait', 'annule'],
-  projet: ['en_attente', 'pret', 'bloque'],
-}
+export { CHK_STATUS_BY_TYPE, defaultChecklistStatus, nextChecklistStatus } from '../../shared/checklist'
 
 export const CHK_STATUS_LABEL: Record<ChecklistStatus, string> = {
   a_faire: 'À faire',
@@ -71,16 +65,6 @@ export const CHK_STATUS_LABEL: Record<ChecklistStatus, string> = {
   annule: 'Annulé',
   en_attente: 'En attente',
   pret: 'Prêt',
-}
-
-export function defaultChecklistStatus(type: ChecklistType): ChecklistStatus {
-  return CHK_STATUS_BY_TYPE[type][0]
-}
-
-export function nextChecklistStatus(item: Pick<ChecklistItem, 'type' | 'status'>): ChecklistStatus {
-  const order = CHK_STATUS_BY_TYPE[item.type]
-  const idx = order.indexOf(item.status)
-  return order[(idx + 1) % order.length]
 }
 
 export type StatusTone = 'success' | 'warning' | 'danger' | 'neutral'

@@ -49,14 +49,14 @@ export default function NotesPage() {
     })
   }, [withProjects, search, sortMode])
 
-  function createNote() {
-    const note = addNote({ title: 'Sans titre', content: '', tags: [] })
-    router.push(`/notes/detail?id=${note.id}`)
+  async function createNote() {
+    const note = await addNote({ title: 'Sans titre', content: '', tags: [] })
+    if (note) router.push(`/notes/detail?id=${note.id}`)
   }
 
-  function handleDelete(e: MouseEvent, id: string) {
+  async function handleDelete(e: MouseEvent, id: string) {
     e.stopPropagation()
-    removeNote(id)
+    if (!await removeNote(id)) return
     showToast('Note déplacée dans la corbeille.', 'default', { label: 'Annuler', onClick: () => restoreNote(id) })
   }
 

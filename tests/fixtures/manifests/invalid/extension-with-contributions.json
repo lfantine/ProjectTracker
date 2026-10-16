@@ -1,0 +1,63 @@
+{
+  "manifestVersion": 1,
+  "kind": "extension",
+  "extensionType": "theme",
+  "id": "example.honey",
+  "name": "Miel",
+  "author": "Exemple",
+  "version": "1.0.0",
+  "hostApi": "^1.0.0",
+  "dependencies": {},
+  "permissions": {},
+  "storageVersion": 1,
+  "target": {
+    "package": "core",
+    "version": "^1.0.0"
+  },
+  "theme": "theme.json",
+  "contributions": [
+    {
+      "id": "planner",
+      "type": "major",
+      "name": "Planning",
+      "entry": "planner.html",
+      "icon": "calendar",
+      "integrations": [
+        "project-slots",
+        "today"
+      ]
+    },
+    {
+      "id": "project-slots",
+      "type": "minor",
+      "name": "Créneaux du projet",
+      "entry": "minor.html",
+      "major": "planner"
+    },
+    {
+      "id": "today",
+      "type": "widget",
+      "name": "Aujourd'hui",
+      "entry": "today.html",
+      "major": "planner",
+      "size": {
+        "default": {
+          "w": 3,
+          "h": 6
+        }
+      }
+    },
+    {
+      "id": "standalone",
+      "type": "widget",
+      "name": "Indépendant",
+      "entry": "today.html",
+      "size": {
+        "default": {
+          "w": 2,
+          "h": 2
+        }
+      }
+    }
+  ]
+}

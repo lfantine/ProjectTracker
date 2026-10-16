@@ -171,7 +171,7 @@ export default function ProjectDetailPage() {
       <button
         type="button"
         onClick={() => router.push('/projects')}
-        className="flex items-center gap-1.5 border-none bg-transparent text-text-muted cursor-pointer text-[13px] mb-2.5 p-0"
+        className="flex items-center gap-1.5 border-none bg-transparent text-text-muted cursor-pointer text-[13px] mb-2.5 p-0" title="Revenir à la page précédente" aria-label="Revenir à la page précédente"
       >
         <ArrowLeftIcon size={14} /> Projets
       </button>
@@ -218,7 +218,7 @@ export default function ProjectDetailPage() {
               router.push('/projects')
             }
           }}
-          className="ml-auto border-none bg-transparent text-danger text-xs font-semibold cursor-pointer flex items-center gap-1"
+          className="ml-auto border-none bg-transparent text-danger text-xs font-semibold cursor-pointer flex items-center gap-1" title="Supprimer cet élément" aria-label="Supprimer cet élément"
         >
           <TrashIcon size={13} /> Supprimer le projet
         </button>
@@ -362,7 +362,7 @@ export default function ProjectDetailPage() {
                     <button
                       type="button"
                       onClick={() => toggleNoteModule(project.id, n!.id)}
-                      title={pinned ? 'Retirer de la colonne de gauche' : 'Épingler dans la colonne de gauche'}
+                      title={pinned ? 'Retirer de la colonne de gauche' : 'Épingler dans la colonne de gauche'} aria-label={pinned ? 'Retirer de la colonne de gauche' : 'Épingler dans la colonne de gauche'}
                       className={`border-none bg-transparent cursor-pointer p-1 flex-shrink-0 transition-colors ${
                         pinned ? 'text-accent' : 'text-text-faint opacity-0 group-hover:opacity-100 hover:text-accent'
                       }`}
@@ -372,7 +372,7 @@ export default function ProjectDetailPage() {
                     <button
                       type="button"
                       onClick={() => unlinkNote(project.id, n!.id)}
-                      className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Supprimer cet élément" aria-label="Supprimer cet élément"
                     >
                       <TrashIcon size={13} />
                     </button>
@@ -401,9 +401,9 @@ export default function ProjectDetailPage() {
               </Select>
             )}
             <GhostButton
-              onClick={() => {
-                const note = addNote({ title: 'Sans titre', content: '', tags: [project.name] })
-                linkNote(project.id, note.id)
+              onClick={async () => {
+                const note = await addNote({ title: 'Sans titre', content: '', tags: [project.name] })
+                if (!note || !await linkNote(project.id, note.id)) return
                 router.push(`/notes/detail?id=${note.id}&projectId=${project.id}`)
               }}
             >
@@ -426,7 +426,7 @@ export default function ProjectDetailPage() {
                       e.stopPropagation()
                       unlinkError(project.id, er!.id)
                     }}
-                    className="border-none bg-transparent text-text-faint cursor-pointer flex-shrink-0"
+                    className="border-none bg-transparent text-text-faint cursor-pointer flex-shrink-0" title="Supprimer cet élément" aria-label="Supprimer cet élément"
                   >
                     <TrashIcon size={13} />
                   </button>
@@ -677,7 +677,7 @@ function ProjectLinkRow({
           />
           {waitingForUrl && <p className="text-[11px] text-warning">En attente du lien — colle l&apos;URL puis quitte le champ.</p>}
         </div>
-        <button type="button" onClick={() => onRemove(link.id)} className="mt-1 border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1"><TrashIcon size={13} /></button>
+        <button type="button" onClick={() => onRemove(link.id)} className="mt-1 border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1" title="Supprimer cet élément" aria-label="Supprimer cet élément"><TrashIcon size={13} /></button>
       </div>
     )
   }
@@ -687,7 +687,7 @@ function ProjectLinkRow({
       <span className="w-7 h-7 rounded-full bg-accent-soft text-accent-soft-text flex items-center justify-center flex-shrink-0"><LinkIcon size={13} /></span>
       <div className="flex-1 min-w-0"><div className="text-[13px] font-semibold text-text truncate group-hover:text-accent transition-colors">{link.title}</div><div className="text-[11px] text-text-faint truncate">{hostname(link.url)}</div></div>
       <button type="button" onClick={(event) => { event.stopPropagation(); setEditing(true) }} className="border-none bg-transparent text-text-faint hover:text-text cursor-pointer p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Modifier le lien"><PencilIcon size={13} /></button>
-      <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(link.id) }} className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon size={13} /></button>
+      <button type="button" onClick={(event) => { event.stopPropagation(); onRemove(link.id) }} className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer p-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" title="Supprimer cet élément" aria-label="Supprimer cet élément"><TrashIcon size={13} /></button>
       <ExternalLinkIcon size={13} className="text-text-faint flex-shrink-0" />
     </div>
   )
@@ -862,7 +862,7 @@ function TaskDetailModal({
       <button
         type="button"
         onClick={onRemove}
-        className="flex items-center gap-1.5 border-none bg-transparent text-danger text-xs font-semibold cursor-pointer mt-4 self-start shrink-0"
+        className="flex items-center gap-1.5 border-none bg-transparent text-danger text-xs font-semibold cursor-pointer mt-4 self-start shrink-0" title="Supprimer cet élément" aria-label="Supprimer cet élément"
       >
         <TrashIcon size={13} /> Supprimer cette tâche
       </button>

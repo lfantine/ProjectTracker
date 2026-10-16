@@ -40,7 +40,7 @@ export function FoldersModal({
     displayMode: FolderDisplayMode
     description?: string
     tagFilter?: string[]
-  }) => ProjectFolder
+  }) => Promise<ProjectFolder | null>
   updateFolder: (
     id: string,
     patch: Partial<Pick<ProjectFolder, 'name' | 'description' | 'displayMode' | 'tagFilter'>>
@@ -65,14 +65,15 @@ export function FoldersModal({
     setNewMode('category')
   }
 
-  function submitCreate() {
+  async function submitCreate() {
     if (!newName.trim()) return
-    const folder = addFolder({
+    const folder = await addFolder({
       name: newName.trim(),
       kind: newKind,
       displayMode: newMode,
       tagFilter: newKind === 'smart' ? [] : undefined,
     })
+    if (!folder) return
     setCreating(false)
     setEditingId(folder.id)
   }

@@ -24,6 +24,8 @@ export default function NoteDetailPage() {
   const [raw, setRaw] = useState(false)
   const [mode, setMode] = useState<Mode>('edit')
   const [savedAt, setSavedAt] = useState<string | null>(null)
+  const editRevision = useRef<number | undefined>(undefined)
+  const saving = useRef<Promise<boolean>>(Promise.resolve(true))
   const loadedIdRef = useRef<string | null>(null)
   const [prompt, setPrompt] = useState('')
   const [editing, setEditing] = useState(false)
@@ -40,6 +42,7 @@ export default function NoteDetailPage() {
   useEffect(() => {
     if (!note || loadedIdRef.current === note.id) return
     loadedIdRef.current = note.id
+    editRevision.current = note.revision
     setTitle(note.title)
     setTags(note.tags)
     setContent(note.content)
@@ -48,20 +51,23 @@ export default function NoteDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note])
 
-  function commit(patch: Partial<{ title: string; tags: string[]; content: string; raw: boolean }>) {
-    if (!id) return
-    updateNote(id, {
-      title: patch.title ?? title,
-      content: patch.content ?? content,
-      tags: patch.tags ?? tags,
-      raw: patch.raw ?? raw,
-    })
-    setSavedAt(new Date().toISOString())
+  function commit(patch: Partial<{ title: string; tags: string[]; content: string; raw: boolean }>): Promise<boolean> {
+    if (!id) return Promise.resolve(false)
+    const save = async () => {
+      const expected = editRevision.current
+      const ok = await updateNote(id, patch, expected)
+      if (ok) {
+        if (expected !== undefined) editRevision.current = expected + 1
+        setSavedAt(new Date().toISOString())
+      }
+      return ok
+    }
+    saving.current = saving.current.then(save, save)
+    return saving.current
   }
 
-  function handleDelete() {
-    if (!id || !note) return
-    removeNote(id)
+  async function handleDelete() {
+    if (!id || !note || !await removeNote(id)) return
     showToast('Note déplacée dans la corbeille.', 'default', { label: 'Annuler', onClick: () => restoreNote(id) })
     router.push(fromProjectId ? `/project?id=${fromProjectId}` : '/notes')
   }
@@ -117,10 +123,10 @@ export default function NoteDetailPage() {
     }
   }
 
-  function acceptAiResponse() {
+  async function acceptAiResponse() {
     if (aiResponse === null) return
     setContent(aiResponse)
-    commit({ content: aiResponse })
+    if (!await commit({ content: aiResponse })) return
     setMode('preview')
     closeAiEditor()
     showToast('La proposition de l’IA a été appliquée.')
@@ -131,7 +137,7 @@ export default function NoteDetailPage() {
       <button
         type="button"
         onClick={() => router.push(fromProjectId ? `/project?id=${fromProjectId}` : '/notes')}
-        className="flex items-center gap-1.5 border-none bg-transparent text-text-muted cursor-pointer text-[13px] mb-4 p-0"
+        className="flex items-center gap-1.5 border-none bg-transparent text-text-muted cursor-pointer text-[13px] mb-4 p-0" title="Revenir à la page précédente" aria-label="Revenir à la page précédente"
       >
         <ArrowLeftIcon size={14} /> {fromProjectId ? 'Retour au projet' : 'Retour aux notes'}
       </button>
@@ -168,7 +174,7 @@ export default function NoteDetailPage() {
                     setRaw(next)
                     commit({ raw: next })
                   }}
-                  title="Basculer entre Markdown et texte brut"
+                  title="Basculer entre Markdown et texte brut" aria-label="Basculer entre Markdown et texte brut"
                   className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors border-none cursor-pointer ${
                     raw ? 'bg-accent' : 'bg-surface2'
                   }`}
@@ -204,7 +210,7 @@ export default function NoteDetailPage() {
               <button
                 type="button"
                 onClick={handleDelete}
-                className="flex items-center gap-1.5 border-none bg-transparent text-text-faint hover:text-danger text-[13px] font-semibold cursor-pointer"
+                className="flex items-center gap-1.5 border-none bg-transparent text-text-faint hover:text-danger text-[13px] font-semibold cursor-pointer" title="Supprimer cet élément" aria-label="Supprimer cet élément"
               >
                 <TrashIcon size={14} /> Supprimer
               </button>

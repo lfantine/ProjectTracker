@@ -1,8 +1,10 @@
 import type { ComponentType } from 'react'
 import type { ModuleType } from './types'
-import { AlertIcon, CalendarIcon, ChartIcon, CodeIcon, ImageIcon, NoteIcon } from '../components/icons'
+import { coreBlockCatalogue, type CoreCategory } from '../../shared/contributionRegistry'
+import type { HostIcon } from '../../shared/version'
+import { AlertIcon, CalendarIcon, ChartIcon, CodeIcon, ImageIcon, NoteIcon, CheckIcon } from '../components/icons'
 
-export type ModuleCategory = 'suivi' | 'contenu' | 'liens'
+export type ModuleCategory = CoreCategory
 
 export const MODULE_CATEGORY_LABEL: Record<ModuleCategory, string> = {
   suivi: 'Suivi',
@@ -23,56 +25,15 @@ export interface ModuleCatalogEntry {
   kind: 'direct' | 'picker'
 }
 
-export const MODULE_CATALOG: ModuleCatalogEntry[] = [
-  {
-    type: 'stack',
-    title: 'Stack',
-    description: 'Liste des technologies utilisées sur ce projet.',
-    category: 'suivi',
-    icon: CodeIcon,
-    kind: 'direct',
-  },
-  {
-    type: 'deadlines',
-    title: 'Échéances',
-    description: 'Dates clés et deadlines à ne pas manquer.',
-    category: 'suivi',
-    icon: CalendarIcon,
-    kind: 'direct',
-  },
-  {
-    type: 'image',
-    title: 'Image / Texte',
-    description: 'Bloc libre avec une image et/ou du texte en markdown.',
-    category: 'contenu',
-    icon: ImageIcon,
-    kind: 'direct',
-  },
-  {
-    type: 'chart',
-    title: 'Graphique',
-    description: 'Graphique simple en barres ou en courbe, à partir de valeurs saisies.',
-    category: 'contenu',
-    icon: ChartIcon,
-    kind: 'direct',
-  },
-  {
-    type: 'note',
-    title: 'Note épinglée',
-    description: 'Affiche le contenu d’une note liée directement dans le projet.',
-    category: 'liens',
-    icon: NoteIcon,
-    kind: 'picker',
-  },
-  {
-    type: 'error',
-    title: 'Erreur épinglée',
-    description: 'Affiche une erreur liée directement dans le projet.',
-    category: 'liens',
-    icon: AlertIcon,
-    kind: 'picker',
-  },
-]
+// Trusted native icon adapters only: descriptors never carry renderer code/SVG.
+const CORE_CATALOGUE_ICONS: Partial<Record<HostIcon, ModuleCatalogEntry['icon']>> = {
+  alert: AlertIcon, calendar: CalendarIcon, chart: ChartIcon, code: CodeIcon,
+  image: ImageIcon, note: NoteIcon, check: CheckIcon,
+}
+export const MODULE_CATALOG: ModuleCatalogEntry[] = coreBlockCatalogue().map(entry => ({
+  type: entry.id, title: entry.name, description: entry.description,
+  category: entry.category, icon: CORE_CATALOGUE_ICONS[entry.icon] ?? NoteIcon, kind: entry.insertion,
+}))
 
 export const MODULE_CATEGORY_COUNTS: Record<ModuleCategory, number> = MODULE_CATEGORY_ORDER.reduce(
   (acc, cat) => {

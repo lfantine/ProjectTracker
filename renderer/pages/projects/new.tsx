@@ -47,13 +47,13 @@ export default function NewProjectPage() {
   const [quickNoteTags, setQuickNoteTags] = useState('')
   const [quickNoteContent, setQuickNoteContent] = useState('')
 
-  function finish() {
+  async function finish() {
     if (!name.trim()) {
       setNameError(true)
       setStep(2)
       return
     }
-    const project = addProject({
+    const project = await addProject({
       name: name.trim(),
       type,
       category: category || data.categories[0] || 'Software',
@@ -65,7 +65,7 @@ export default function NewProjectPage() {
       tasks,
       deadlines,
     })
-    router.push(`/project?id=${project.id}`)
+    if (project) router.push(`/project?id=${project.id}`)
   }
 
   return (
@@ -261,9 +261,9 @@ export default function NewProjectPage() {
                 />
                 <SecondaryButton
                   className="self-start"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!quickNoteTitle.trim()) return
-                    const note = addNote({
+                    const note = await addNote({
                       title: quickNoteTitle.trim(),
                       content: quickNoteContent,
                       tags: quickNoteTags
@@ -271,6 +271,7 @@ export default function NewProjectPage() {
                         .map((t) => t.trim())
                         .filter(Boolean),
                     })
+                    if (!note) return
                     setNoteIds((prev) => prev.concat([note.id]))
                     setQuickNoteTitle('')
                     setQuickNoteTags('')

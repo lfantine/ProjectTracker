@@ -1,5 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
+import { NativeBatch } from '../lib/nativeBatch'
+import type { CommandParams, NativeCommandName } from '../../shared/commands'
+import { operationId } from '../lib/store'
 import { useData } from '../lib/store'
 import { Markdown } from './Markdown'
 import { PrimaryButton, SecondaryButton, Spinner, Textarea } from './ui'
@@ -206,8 +209,10 @@ function parseAiDraft(answer: string, fallbackCategory: string): AiDraft {
   throw new Error('Type non pris en charge. Utilise « note », « error » ou « project ».')
 }
 
-export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: boolean; onClose: () => void; initialTargetId?: string }) {
-  const { data, addNote, addError, addProject, updateNote, updateProject, updateError, removeNote, linkNote, unlinkNote, linkError, unlinkError, addModule } = useData()
+export function CreateWithAiModal({ open, onClose, initialTargetId, initialPrompt = '', embedded = false, onPromptChange, onBusyChange }: { open: boolean; onClose: () => void; initialTargetId?: string; initialPrompt?: string; embedded?: boolean; onPromptChange?: (prompt: string) => void; onBusyChange?: (busy: boolean) => void }) {
+  const { data, applyBatch } = useData()
+  const proposalData = useRef(data)
+  const batchOperation = useRef({ key: '', id: '' })
   const router = useRouter()
   const [selection, setSelection] = useState('auto')
   useEffect(() => { if (open) setSelection(initialTargetId || 'auto') }, [open, initialTargetId])
@@ -220,6 +225,7 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
   ]
   const inventory = JSON.stringify(objects.map(({ item, ...entry }) => entry))
   const [prompt, setPrompt] = useState('')
+  useEffect(() => { if (open) setPrompt(initialPrompt) }, [open, initialPrompt])
   const [analysis, setAnalysis] = useState<AiCreationAnalysis | null>(null)
   const target = analysis?.action === 'edit' ? objects.find((item) => item.id === analysis.targetId && item.type === analysis.type) : undefined
   const [questions, setQuestions] = useState<AiCreationQuestion[]>([])
@@ -229,13 +235,15 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
   const [history, setHistory] = useState<{ draft: AiDraft; changes: Record<string, unknown>; actions: Record<string, unknown>[] }[]>([])
   const [revisionFields, setRevisionFields] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  useEffect(() => { onBusyChange?.(loading || !!draft); return () => onBusyChange?.(false) }, [loading, draft, onBusyChange])
   const [step, setStep] = useState<'analysis' | 'requirements' | 'creation' | 'refinement' | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
+  useEffect(() => () => { requestIdRef.current += 1 }, [])
   const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!open) return
+    if (!open || embedded) return
     const previous = document.activeElement as HTMLElement | null
     const dialog = dialogRef.current
     if (dialog && !dialog.contains(document.activeElement)) dialog.focus()
@@ -249,7 +257,7 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
     }
     document.addEventListener('keydown', onKey)
     return () => { document.removeEventListener('keydown', onKey); previous?.focus() }
-  }, [open])
+  }, [open, embedded])
 
   function reset() {
     requestIdRef.current += 1
@@ -257,6 +265,7 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
     setHistory([])
     setRevisionFields([])
     setPrompt('')
+    onPromptChange?.('')
     setSelection('auto')
     setChanges({})
     setNoteActions([])
@@ -279,6 +288,7 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
     event.preventDefault()
     const instruction = prompt.trim()
     if (!instruction || loading) return
+    proposalData.current = data
 
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
@@ -474,39 +484,70 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
     return requestAiJson(request, (value) => window.api.ai.call(value), parser, setAttempt)
   }
 
-  function applyNotes(selfId: string) {
-    for (const action of noteActions) {
-      const projectIds = stringList(action.projectIds).map((id) => id === '$self' ? selfId : id)
-      const noteId = action.action === 'create'
-        ? addNote({ title: stringValue(action.title), content: stringValue(action.content), tags: stringList(action.tags) }).id
-        : action.noteId === '$self' ? selfId : String(action.noteId)
-      if (action.action === 'delete') removeNote(noteId)
-      else for (const projectId of projectIds) {
-        if (action.action === 'unlink') unlinkNote(projectId, noteId)
-        else linkNote(projectId, noteId)
-        if (action.action === 'create' && action.pin === true) addModule(projectId, { id: uid('mod'), type: 'note', refId: noteId })
+  async function persistDraft() {
+    if (!draft || loading) return
+    const batch = new NativeBatch()
+    const baseline = proposalData.current
+    const target = analysis?.action === 'edit' ? [
+      ...baseline.projects.map((item) => ({ type: 'project', id: item.id, item })),
+      ...baseline.notes.map((item) => ({ type: 'note', id: item.id, item })),
+      ...baseline.errors.map((item) => ({ type: 'error', id: item.id, item })),
+    ].find((item) => item.id === analysis.targetId && item.type === analysis.type) : undefined
+    const addNote = async (input: CommandParams<'notes.create'>['input']) => batch.add('notes.create', { input, operationId: operationId() })
+    const addProject = async (input: CommandParams<'projects.create'>['input']) => batch.add('projects.create', { input, operationId: operationId() })
+    const addError = async (input: CommandParams<'errors.create'>['input']) => batch.add('errors.create', { input, operationId: operationId() })
+    const record = async <K extends Exclude<NativeCommandName, 'core.batch'>>(name: K, params: CommandParams<K>) => {
+      batch.add(name, params)
+      return true
+    }
+    const updateNote = (id: string, patch: CommandParams<'notes.update'>['patch']) => record('notes.update', { id, patch, expectedRevision: baseline.notes.find((item) => item.id === id)?.revision })
+    const updateProject = (id: string, patch: CommandParams<'projects.update'>['patch']) => record('projects.update', { id, patch, expectedRevision: baseline.projects.find((item) => item.id === id)?.revision })
+    const updateError = (id: string, patch: CommandParams<'errors.update'>['patch']) => record('errors.update', { id, patch, expectedRevision: baseline.errors.find((item) => item.id === id)?.revision })
+    const removeNote = (id: string) => record('notes.trash', { id })
+    const linkNote = (projectId: string, noteId: string) => record('projects.linkNote', { projectId, noteId })
+    const unlinkNote = (projectId: string, noteId: string) => record('projects.unlinkNote', { projectId, noteId })
+    const linkError = (projectId: string, errorId: string) => record('projects.linkError', { projectId, errorId })
+    const unlinkError = (projectId: string, errorId: string) => record('projects.unlinkError', { projectId, errorId })
+    const addModule = (projectId: string, block: ProjectModule) => record('blocks.add', { projectId, block })
+    const finish = async (route: string) => {
+      const key = JSON.stringify({ draft, changes, noteActions, analysis })
+      if (batchOperation.current.key !== key) batchOperation.current = { key, id: operationId() }
+      const results = batch.steps.length ? await applyBatch(batch.steps, batchOperation.current.id) : []
+      if (!results) throw new Error('L’enregistrement a échoué. Aucune modification de la proposition n’a été appliquée.')
+      close()
+      await router.push(batch.resolveRoute(route, results))
+    }
+    async function applyNotes(selfId: string) {
+      for (const action of noteActions) {
+        const projectIds = stringList(action.projectIds).map((id) => id === '$self' ? selfId : id)
+        const created = action.action === 'create' ? await addNote({ title: stringValue(action.title), content: stringValue(action.content), tags: stringList(action.tags) }) : null
+        if (action.action === 'create' && !created) throw new Error('La note n’a pas été enregistrée.')
+        const noteId = created ? created.id : action.noteId === '$self' ? selfId : String(action.noteId)
+        if (action.action === 'delete') await requireSaved(removeNote(noteId))
+        else for (const projectId of projectIds) {
+          if (action.action === 'unlink') await requireSaved(unlinkNote(projectId, noteId))
+          else await requireSaved(linkNote(projectId, noteId))
+          if (action.action === 'create' && action.pin === true) await requireSaved(addModule(projectId, { id: uid('mod'), type: 'note', refId: noteId }))
+        }
       }
     }
-  }
 
-  // A pinned note/error module only renders for items linked to the project.
-  function linkPinned(projectId: string, layout: ProjectModule[]) {
-    for (const m of layout) {
-      if (m.type === 'note' && m.refId) linkNote(projectId, m.refId)
-      if (m.type === 'error' && m.refId) linkError(projectId, m.refId)
+    // A pinned note/error module only renders for items linked to the project.
+    async function linkPinned(projectId: string, layout: ProjectModule[]) {
+      for (const m of layout) {
+        if (m.type === 'note' && m.refId) await requireSaved(linkNote(projectId, m.refId))
+        if (m.type === 'error' && m.refId) await requireSaved(linkError(projectId, m.refId))
+      }
     }
-  }
 
-  function applyDraft() {
-    if (!draft || loading) return
     if (analysis?.action === 'edit') {
       if (!target) { setError('L’objet à modifier n’existe plus.'); return }
-      if (draft.type === 'note') updateNote(target.id, { title: draft.title, content: draft.content, tags: draft.tags, raw: draft.raw })
+      if (draft.type === 'note') await requireSaved(updateNote(target.id, { title: draft.title, content: draft.content, tags: draft.tags, raw: draft.raw }))
       if (draft.type === 'error') {
-        updateError(target.id, { title: draft.title, content: draft.content, causes: draft.causes, solution: draft.solution })
+        await requireSaved(updateError(target.id, { title: draft.title, content: draft.content, causes: draft.causes, solution: draft.solution }))
         if ('projectNames' in changes) for (const project of data.projects) {
-          if (draft.projectNames.includes(project.name)) linkError(project.id, target.id)
-          else unlinkError(project.id, target.id)
+          if (draft.projectNames.includes(project.name)) await requireSaved(linkError(project.id, target.id))
+          else await requireSaved(unlinkError(project.id, target.id))
         }
       }
       if (draft.type === 'project' && 'name' in target.item) {
@@ -526,43 +567,42 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
         if ('imageUrl' in changes && !('modules' in changes)) layout = withImageUrl(layout, draft.imageUrl)
         if ('stack' in changes) layout = withStackModule(layout, draft.stack)
         if (layout !== currentLayout) patch.layout = layout
-        updateProject(target.id, patch)
-        linkPinned(target.id, layout)
+        await requireSaved(updateProject(target.id, patch))
+        await linkPinned(target.id, layout)
       }
-      applyNotes(target.id)
+      await applyNotes(target.id)
       const url = draft.type === 'project' ? `/project?id=${target.id}` : draft.type === 'note' ? `/notes/detail?id=${target.id}` : '/errors'
-      close()
-      router.push(url)
+      await finish(url)
       return
     }
     if (draft.type === 'note') {
-      const note = addNote({ title: draft.title, content: draft.content, tags: draft.tags })
-      if (draft.raw) updateNote(note.id, { raw: true })
-      applyNotes(note.id)
-      close()
-      router.push(`/notes/detail?id=${note.id}`)
+      const note = await addNote({ title: draft.title, content: draft.content, tags: draft.tags })
+      if (!note) return
+      if (draft.raw) await requireSaved(updateNote(note.id, { raw: true }))
+      await applyNotes(note.id)
+      await finish(`/notes/detail?id=${note.id}`)
       return
     }
     if (draft.type === 'error') {
       const projectIds = data.projects
         .filter((project) => draft.projectNames.some((name) => name.toLowerCase() === project.name.toLowerCase()))
         .map((project) => project.id)
-      const createdError = addError({
+      const createdError = await addError({
         title: draft.title,
         content: draft.content,
         causes: draft.causes,
         solution: draft.solution,
         projectIds,
       })
-      applyNotes(createdError.id)
-      close()
-      router.push('/errors')
+      if (!createdError) return
+      await applyNotes(createdError.id)
+      await finish('/errors')
       return
     }
     let createdLayout: ProjectModule[] = draft.modules ? buildLayoutFromAiModules(draft.modules, [], () => uid('mod')) : defaultProjectLayout()
     if (draft.imageUrl && !createdLayout.some((m) => m.type === 'image' && m.imageUrl === draft.imageUrl)) createdLayout = withImageUrl(createdLayout, draft.imageUrl)
     createdLayout = withStackModule(createdLayout, draft.stack)
-    const project = addProject({
+    const project = await addProject({
       name: draft.name, type: draft.projectType, category: draft.category,
       platforms: draft.platforms,
       tags: draft.tags,
@@ -578,39 +618,51 @@ export function CreateWithAiModal({ open, onClose, initialTargetId }: { open: bo
         status: deadline.date < todayISO() ? 'depasse' : 'a_venir',
       })),
     })
-    updateProject(project.id, {
+    if (!project) return
+    await requireSaved(updateProject(project.id, {
       description: draft.description,
       stack: draft.stack,
       links: draft.links.map((link) => ({ id: uid('l'), ...link })),
       layout: createdLayout,
-    })
-    linkPinned(project.id, createdLayout)
-    applyNotes(project.id)
-    close()
-    router.push(`/project?id=${project.id}`)
+    }))
+    await linkPinned(project.id, createdLayout)
+    await applyNotes(project.id)
+    await finish(`/project?id=${project.id}`)
+  }
+
+  async function requireSaved(result: Promise<boolean>) {
+    if (!await result) throw new Error('L’enregistrement a échoué. Le brouillon est conservé.')
+  }
+
+  async function applyDraft() {
+    if (loading) return
+    setLoading(true)
+    try { await persistDraft() }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'L’enregistrement a échoué.') }
+    finally { setLoading(false) }
   }
 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50 p-8" onClick={close}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Créer ou modifier avec l’IA" onClick={(event) => event.stopPropagation()} className="bg-surface border border-border rounded-2xl shadow-2xl flex flex-col w-full" style={{ width: '80vw', maxWidth: 'calc(100vw - 32px)', height: '80vh', maxHeight: '80vh' }}>
-        <div className="flex items-center justify-between px-7 py-5 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2"><SparklesIcon size={17} /><h2 className="text-[18px] font-bold">Créer ou modifier avec l&apos;IA</h2></div>
-          <button type="button" onClick={close} className="border-none bg-transparent text-text-muted cursor-pointer flex items-center" aria-label="Fermer"><XIcon size={20} /></button>
-        </div>
-        <div className="flex-1 overflow-auto px-7 py-6">
-          <form onSubmit={aiCall} className="flex flex-col gap-3">
-            <p className="text-[13.5px] text-text-muted leading-relaxed">Décris ce que tu veux créer ou modifier. L&apos;IA prépare une proposition structurée que tu pourras vérifier avant de l&apos;appliquer.</p>
-            <label className="flex flex-col gap-2 text-[13px]">Étape 1 · Objet à créer ou modifier
-              <select value={selection} disabled={loading || !!draft} onChange={(event) => { setSelection(event.target.value); setAnalysis(null); setDraft(null); setQuestions([]); setError(null) }} className="bg-bg border border-border rounded-lg p-2">
+    <div className={embedded ? "min-w-0" : "fixed inset-0 bg-overlay flex items-center justify-center z-50 p-8"} onClick={embedded ? undefined : close}>
+      <div ref={dialogRef} tabIndex={-1} role={embedded ? "region" : "dialog"} aria-modal={embedded ? undefined : true} aria-label="Créer ou modifier avec l’IA" onClick={(event) => event.stopPropagation()} className={embedded ? "contents" : "bg-surface border border-border rounded-2xl shadow-2xl flex flex-col w-full"} style={embedded ? { width: '100%' } : { width: '80vw', maxWidth: 'calc(100vw - 32px)', height: '80vh', maxHeight: '80vh' }}>
+        {!embedded && <div className="flex items-center justify-between border-b border-border flex-shrink-0 px-7 py-5">
+          <div className="flex items-center gap-2"><SparklesIcon size={17} /><h2 className={embedded ? "text-[14px] font-bold" : "text-[18px] font-bold"}>Créer ou modifier avec l&apos;IA</h2></div>
+          {!embedded && <button type="button" onClick={close} className="border-none bg-transparent text-text-muted cursor-pointer flex items-center" aria-label="Fermer"><XIcon size={20} /></button>}
+        </div>}
+        <div className={`flex-1 overflow-auto ${embedded ? "px-5 pb-4" : "px-7 py-6"}`}>
+          <form onSubmit={aiCall} className={embedded ? "flex flex-wrap items-end justify-between gap-3" : "flex flex-col gap-3"}>
+            {!embedded && <p className="text-[13.5px] text-text-muted leading-relaxed">Décris ce que tu veux créer ou modifier. L&apos;IA prépare une proposition structurée que tu pourras vérifier avant de l&apos;appliquer.</p>}
+            <label className={embedded ? "flex min-w-0 flex-1 flex-col gap-1.5 text-[11px] text-text-muted" : "flex flex-col gap-2 text-[13px]"}>{embedded ? "Contexte" : "Étape 1 · Objet à créer ou modifier"}
+              <select aria-label="Objet à créer ou modifier" value={selection} disabled={loading || !!draft} onChange={(event) => { setSelection(event.target.value); setAnalysis(null); setDraft(null); setQuestions([]); setError(null) }} className="bg-bg border border-border rounded-lg p-2">
                 <option value="auto">Laisser l’IA choisir selon la demande</option>
                 <option value="create">Créer un nouvel objet</option>
                 {objects.map((item) => <option key={item.id} value={item.id}>Modifier · {item.type} · {item.title}</option>)}
               </select>
-              <span className="text-text-muted">{objects.length} objets existants disponibles dans la liste.</span>
+              {!embedded && <span className="text-text-muted">{objects.length} objets existants disponibles dans la liste.</span>}
             </label>
-            <Textarea value={prompt} onChange={(event) => { setPrompt(event.target.value); setDraft(null); setAnalysis(null); setQuestions([]) }} placeholder="Ex. Crée un projet vidéo pour une série de tutoriels ESP32, avec YouTube et TikTok." disabled={loading || !!draft} required autoFocus className="w-full" style={{ minHeight: 100 }} />
+            {!embedded && <Textarea aria-label="Demande pour l’IA" value={prompt} onChange={(event) => { setPrompt(event.target.value); onPromptChange?.(event.target.value); setDraft(null); setAnalysis(null); setQuestions([]) }} placeholder="Ex. Crée un projet vidéo pour une série de tutoriels ESP32, avec YouTube et TikTok." disabled={loading || !!draft} required autoFocus={!embedded} className="w-full" style={{ minHeight: 100 }} />}
             <div className="flex justify-end"><PrimaryButton type="submit" disabled={!prompt.trim() || loading || !!draft}><span className="flex items-center gap-1.5">{loading && <Spinner size={13} />}<SparklesIcon size={13} /> {loading ? 'Génération…' : 'Générer la proposition'}</span></PrimaryButton></div>
           </form>
           {loading && <ProcessingPanel step={step} attempt={attempt} />}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import { useMemo, useState, type ComponentType } from 'react'
 import { useRouter } from 'next/router'
 import { AppShell } from '../components/AppShell'
 import { ProjectCard } from '../components/ProjectCard'
@@ -15,7 +15,6 @@ const FILTERS: { key: ProjectStatus | 'tous'; label: string }[] = [
   ...PROJECT_STATUS_ORDER.map((s) => ({ key: s, label: PROJECT_STATUS_LABEL[s] })),
 ]
 
-const COLLAPSED_STORAGE_KEY = 'tracker_collapsed_category_folders'
 const UNFOLDERED_ID = '__unfoldered__'
 
 function byRecentlyUpdated(a: Project, b: Project) {
@@ -23,27 +22,15 @@ function byRecentlyUpdated(a: Project, b: Project) {
 }
 
 export default function ProjectsPage() {
-  const { data, loading, addFolder, updateFolder, removeFolder, updateProject } = useData()
+  const { data, loading, preferences, updatePreferences, addFolder, updateFolder, removeFolder, updateProject } = useData()
   const router = useRouter()
   const [filter, setFilter] = useState<ProjectStatus | 'tous'>('tous')
   const [foldersModalOpen, setFoldersModalOpen] = useState(false)
-  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY)
-      if (raw) setCollapsedFolders(JSON.parse(raw))
-    } catch {
-      // ignore malformed/unavailable storage
-    }
-  }, [])
+  const collapsedFolders = preferences.collapsedCategoryFolders
 
   function toggleFolderCollapsed(folderId: string) {
-    setCollapsedFolders((prev) => {
-      const next = { ...prev, [folderId]: !prev[folderId] }
-      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(next))
-      return next
-    })
+    void updatePreferences({ collapsedCategoryFolders: collapsedFolders.includes(folderId)
+      ? collapsedFolders.filter((id) => id !== folderId) : [...collapsedFolders, folderId] })
   }
 
   const groups = useMemo(() => {
@@ -152,7 +139,7 @@ export default function ProjectsPage() {
               iconClassName={s.folder.kind === 'smart' ? 'text-accent' : 'text-text-faint'}
               projects={s.projects}
               filter={filter}
-              collapsed={!!collapsedFolders[s.folder.id]}
+              collapsed={collapsedFolders.includes(s.folder.id)}
               onToggle={() => toggleFolderCollapsed(s.folder.id)}
             />
           ))}
@@ -164,7 +151,7 @@ export default function ProjectsPage() {
               iconClassName="text-text-faint"
               projects={unfoldered}
               filter={filter}
-              collapsed={!!collapsedFolders[UNFOLDERED_ID]}
+              collapsed={collapsedFolders.includes(UNFOLDERED_ID)}
               onToggle={() => toggleFolderCollapsed(UNFOLDERED_ID)}
             />
           )}

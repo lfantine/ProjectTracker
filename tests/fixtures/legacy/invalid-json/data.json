@@ -1,0 +1,4 @@
+{
+  "categories": ["Software"],
+  "projects": [
+    { "id": "p_trunc", "name": "Tronqué"

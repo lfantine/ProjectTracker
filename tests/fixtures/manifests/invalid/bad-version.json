@@ -1,0 +1,82 @@
+{
+  "manifestVersion": 1,
+  "kind": "package",
+  "id": "example.week-like",
+  "name": "Planning complet",
+  "description": "Un majeur, un mineur associé, un widget associé, un widget indépendant",
+  "author": "Exemple",
+  "version": "1.2",
+  "hostApi": "^1.0.0",
+  "dependencies": {},
+  "permissions": {
+    "core": {
+      "projects": [
+        "read"
+      ]
+    }
+  },
+  "storageVersion": 1,
+  "contributions": [
+    {
+      "id": "planner",
+      "type": "major",
+      "name": "Planning",
+      "entry": "planner.html",
+      "icon": "calendar",
+      "integrations": [
+        "project-slots",
+        "today"
+      ]
+    },
+    {
+      "id": "project-slots",
+      "type": "minor",
+      "name": "Créneaux du projet",
+      "entry": "minor.html",
+      "major": "planner"
+    },
+    {
+      "id": "today",
+      "type": "widget",
+      "name": "Aujourd'hui",
+      "entry": "today.html",
+      "major": "planner",
+      "size": {
+        "default": {
+          "w": 3,
+          "h": 6
+        }
+      }
+    },
+    {
+      "id": "standalone",
+      "type": "widget",
+      "name": "Indépendant",
+      "entry": "today.html",
+      "size": {
+        "default": {
+          "w": 2,
+          "h": 2
+        }
+      }
+    }
+  ],
+  "exports": [
+    {
+      "id": "slots",
+      "version": 1,
+      "collections": [
+        "week"
+      ],
+      "scope": "instance",
+      "major": "planner"
+    }
+  ],
+  "slots": [
+    {
+      "id": "summary",
+      "version": 1,
+      "contribution": "planner"
+    }
+  ]
+}

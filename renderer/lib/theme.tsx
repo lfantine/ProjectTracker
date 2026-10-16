@@ -4,11 +4,12 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import type { ThemeMode } from './types'
+import { useData } from './store'
 
-const STORAGE_KEY = 'tracker_theme_mode'
 
 interface ThemeContextValue {
   themeMode: ThemeMode
@@ -27,14 +28,11 @@ const LABELS: Record<ThemeMode, string> = {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('system')
+  const { preferences, updatePreferences } = useData()
+  const themeMode = preferences.themeMode
   const [systemDark, setSystemDark] = useState(false)
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY) as ThemeMode | null
-    if (stored === 'system' || stored === 'light' || stored === 'dark') {
-      setThemeModeState(stored)
-    }
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     setSystemDark(mq.matches)
     const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches)
@@ -42,25 +40,36 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
+  const themeRequest = useRef(0)
+  const [packageTheme, setPackageTheme] = useState<import('../../shared/packageShell').PackageShellSnapshot['hostTheme']>(null)
+  useEffect(() => {
+    let alive = true
+    const refresh = () => { const request = ++themeRequest.current; void window.api?.packages?.snapshot().then(result => { if (alive && request === themeRequest.current && result.ok) setPackageTheme(result.value.hostTheme ?? null) }).catch(() => {}) }
+    refresh(); const stop = window.api?.packages?.onChanged(refresh)
+    return () => { alive = false; stop?.() }
+  }, [])
   const isDark = themeMode === 'system' ? systemDark : themeMode === 'dark'
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark)
   }, [isDark])
 
+  useEffect(() => {
+    if (!packageTheme) return
+    const style = document.documentElement.style, tokens = isDark ? packageTheme.dark : packageTheme.light
+    const mapping: Record<string, string> = { background: '--tracker-bg', surface: '--tracker-surface', text: '--tracker-text', accent: '--tracker-accent', border: '--tracker-border' }
+    for (const [key, value] of Object.entries(tokens)) if (mapping[key]) style.setProperty(mapping[key], value)
+    if (packageTheme.background) style.setProperty('--tracker-background-image', `url("${packageTheme.background}")`)
+    return () => { for (const key of Object.keys(tokens)) if (mapping[key]) style.removeProperty(mapping[key]); style.removeProperty('--tracker-background-image') }
+  }, [packageTheme, isDark])
+
   const setThemeMode = useCallback((mode: ThemeMode) => {
-    setThemeModeState(mode)
-    window.localStorage.setItem(STORAGE_KEY, mode)
-  }, [])
+    void updatePreferences({ themeMode: mode })
+  }, [updatePreferences])
 
   const cycleTheme = useCallback(() => {
-    setThemeModeState((prev) => {
-      const next: ThemeMode =
-        prev === 'system' ? 'light' : prev === 'light' ? 'dark' : 'system'
-      window.localStorage.setItem(STORAGE_KEY, next)
-      return next
-    })
-  }, [])
+    setThemeMode(themeMode === 'system' ? 'light' : themeMode === 'light' ? 'dark' : 'system')
+  }, [themeMode, setThemeMode])
 
   const value = useMemo(
     () => ({

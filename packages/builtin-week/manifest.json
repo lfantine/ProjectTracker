@@ -1,0 +1,21 @@
+{
+  "manifestVersion": 1,
+  "kind": "package",
+  "id": "builtin.week",
+  "name": "Semaine type",
+  "logo": "assets/logo.png",
+  "description": "Semaines nommées, créneaux du projet et planning du jour.",
+  "author": "amber",
+  "version": "1.1.2",
+  "hostApi": "^1.0.0",
+  "dependencies": {},
+  "permissions": { "core": { "projects": ["read"] } },
+  "storageVersion": 1,
+  "contributions": [
+    { "id": "planner", "type": "major", "name": "Semaine type", "entry": "planner.html", "icon": "calendar", "integrations": ["project-slots", "today"], "instanceLabel": "Semaine", "minInstances": 1 },
+    { "id": "project-slots", "type": "minor", "name": "Créneaux du projet", "entry": "project-slots.html", "major": "planner", "icon": "calendar" },
+    { "id": "today", "type": "widget", "name": "Planning du jour", "entry": "today.html", "major": "planner", "icon": "calendar", "size": { "default": { "w": 3, "h": 12 }, "min": { "w": 2, "h": 4 } } }
+  ],
+  "exports": [{ "id": "week-slots", "version": 1, "collections": ["week"], "scope": "instance", "major": "planner" }],
+  "slots": [{ "id": "summary", "version": 1, "contribution": "planner" }]
+}

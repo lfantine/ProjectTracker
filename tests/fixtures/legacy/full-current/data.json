@@ -1,0 +1,203 @@
+{
+  "categories": ["Hardware", "Software", "Mobile", "Atelier"],
+  "platforms": {
+    "dev": ["PC", "Tablette", "Mobile", "Docker", "Embarqué", "Personnel", "Raspberry"],
+    "video": ["YouTube", "Instagram", "TikTok", "Twitch", "LinkedIn", "Autre"]
+  },
+  "folders": [
+    { "id": "f_manual", "name": "Clients", "kind": "manual", "displayMode": "group", "description": "Projets pour des clients" },
+    { "id": "f_smart", "name": "Rust", "kind": "smart", "displayMode": "category", "tagFilter": ["rust", "cli"] }
+  ],
+  "projects": [
+    {
+      "id": "p_alpha",
+      "name": "Alpha",
+      "type": "dev",
+      "category": "Software",
+      "platforms": ["PC", "Docker"],
+      "tags": ["rust", "cli"],
+      "folderId": "f_manual",
+      "status": "actif",
+      "createdAt": "2026-01-02T10:00:00.000Z",
+      "updatedAt": "2026-09-30T08:15:00.000Z",
+      "lastOpenedAt": "2026-10-01T09:00:00.000Z",
+      "description": "Outil **CLI** de démonstration",
+      "stack": ["Rust", "SQLite"],
+      "path": "/tmp/pt-fixture-missing/alpha",
+      "noteIds": ["n_spec", "n_missing"],
+      "errorIds": ["e_panic", "e_missing"],
+      "checklist": [
+        { "id": "c_1", "label": "Carte SD", "type": "materiel", "status": "a_acheter", "link": "https://example.com/sd" },
+        { "id": "c_2", "label": "Démo", "type": "evenement", "status": "a_venir", "date": "2026-11-12", "description": "Salle B" },
+        { "id": "c_3", "label": "Dépendance", "type": "projet", "status": "en_attente", "projectRef": "p_beta" },
+        { "id": "c_4", "label": "Projet supprimé", "type": "projet", "status": "en_attente", "projectRef": "p_deleted" }
+      ],
+      "tasks": [
+        {
+          "id": "t_root",
+          "name": "Parser",
+          "content": "Lire les **arguments**",
+          "status": "en_cours",
+          "children": [
+            {
+              "id": "t_child",
+              "name": "Options",
+              "content": "",
+              "status": "fait",
+              "children": [
+                { "id": "t_grandchild", "name": "Aide", "content": "--help", "status": "fait", "children": [] }
+              ]
+            },
+            { "id": "t_child2", "name": "Sous-commandes", "content": "", "status": "a_faire", "children": [] }
+          ]
+        },
+        { "id": "t_second", "name": "Tests", "content": "", "status": "a_faire", "children": [] }
+      ],
+      "deadlines": [
+        { "id": "d_1", "label": "Bêta", "date": "2026-11-30", "status": "a_venir" },
+        { "id": "d_2", "label": "Alpha", "date": "2026-03-01", "status": "fait" },
+        { "id": "d_3", "label": "Retard", "date": "2026-02-01", "status": "depasse" }
+      ],
+      "links": [
+        { "id": "l_repo", "title": "Dépôt", "url": "https://example.com/alpha" },
+        { "id": "l_doc", "title": "Doc", "url": "https://example.com/alpha/doc" }
+      ],
+      "layout": [
+        { "id": "mod_tasks", "type": "tasks", "title": "Feuille de route", "customize_title": true },
+        { "id": "mod_deadlines", "type": "deadlines" },
+        { "id": "mod_note_spec", "type": "note", "refId": "n_spec" },
+        { "id": "mod_note_ghost", "type": "note", "refId": "n_missing" },
+        { "id": "mod_error", "type": "error", "refId": "e_panic", "title": "Panique connue" },
+        { "id": "mod_stack", "type": "stack" },
+        { "id": "mod_image", "type": "image", "imageUrl": "/tmp/pt-fixture-missing/schema.png", "title": "Schéma", "text": "Légende" },
+        {
+          "id": "mod_chart",
+          "type": "chart",
+          "title": "Vitesse",
+          "chart": {
+            "kind": "line",
+            "points": [
+              { "id": "pt_1", "label": "Lun", "value": "12.5" },
+              { "id": "pt_2", "label": "Mar", "value": "-" },
+              { "id": "pt_3", "label": "Mer", "value": "1," },
+              { "id": "pt_4", "label": "Jeu", "value": "" },
+              { "id": "pt_5", "label": "Ven", "value": "007" }
+            ]
+          }
+        },
+        {
+          "id": "mod_table",
+          "type": "table",
+          "title": "Fournisseurs",
+          "customize_title": true,
+          "table": {
+            "columns": [
+              { "id": "col_name", "label": "Nom", "type": "text" },
+              { "id": "col_date", "label": "Relance", "type": "date" },
+              { "id": "col_url", "label": "Site", "type": "url" },
+              { "id": "col_state", "label": "État", "type": "select", "options": ["Contacté", "Refus", "OK"] }
+            ],
+            "rows": [
+              {
+                "id": "row_1",
+                "cells": { "col_name": "ACME", "col_date": "2026-10-20", "col_url": "https://acme.example", "col_state": "Contacté" },
+                "contact": "jeanne@example.com",
+                "notes": "Préfère le mail",
+                "history": [{ "date": "2026-10-01", "text": "Premier contact" }, { "date": "2026-10-08", "text": "Relance" }]
+              },
+              { "id": "row_2", "cells": { "col_name": "Globex", "col_state": "" } }
+            ]
+          }
+        },
+        { "id": "mod_text", "type": "image", "title": "", "imageUrl": "", "text": "Bloc **texte** libre" },
+        { "id": "mod_future", "type": "hologram", "title": "Bloc d'un type inconnu", "payload": { "x": 1 } }
+      ]
+    },
+    {
+      "id": "p_beta",
+      "name": "Beta",
+      "type": "video",
+      "category": "Mobile",
+      "platforms": ["YouTube"],
+      "tags": [],
+      "status": "pause",
+      "createdAt": "2026-02-10T10:00:00.000Z",
+      "updatedAt": "2026-08-01T10:00:00.000Z",
+      "noteIds": ["n_spec"],
+      "errorIds": [],
+      "checklist": [],
+      "tasks": [],
+      "deadlines": [],
+      "links": [],
+      "layout": [
+        { "id": "mod_tasks", "type": "tasks" },
+        { "id": "mod_note_spec", "type": "note", "refId": "n_spec" }
+      ]
+    },
+    {
+      "id": "p_gamma",
+      "name": "Gamma",
+      "type": "dev",
+      "category": "Hardware",
+      "platforms": [],
+      "tags": ["cli"],
+      "folderId": "f_vanished",
+      "status": "termine",
+      "createdAt": "2025-05-01T10:00:00.000Z",
+      "updatedAt": "2025-06-01T10:00:00.000Z",
+      "noteIds": [],
+      "errorIds": ["e_panic"],
+      "checklist": [],
+      "tasks": [{ "id": "t_root", "name": "Même identifiant qu'Alpha", "content": "", "status": "fait", "children": [] }],
+      "deadlines": [{ "id": "d_1", "label": "Même identifiant", "date": "2025-05-20", "status": "fait" }],
+      "links": [],
+      "layout": []
+    }
+  ],
+  "notes": [
+    { "id": "n_spec", "title": "Spécification", "content": "# Spec\n\n- point 1", "tags": ["doc"], "createdAt": "2026-01-03T10:00:00.000Z", "updatedAt": "2026-09-01T10:00:00.000Z" },
+    { "id": "n_raw", "title": "Brouillon", "content": "texte *brut*", "tags": [], "raw": true, "createdAt": "2026-03-03T10:00:00.000Z", "updatedAt": "2026-03-04T10:00:00.000Z" }
+  ],
+  "errors": [
+    { "id": "e_panic", "title": "Panique au démarrage", "content": "thread main panicked", "causes": "unwrap()", "solution": "Gérer l'erreur", "createdAt": "2026-04-01T10:00:00.000Z", "projectIds": ["p_alpha", "p_gamma", "p_deleted"] },
+    { "id": "e_alone", "title": "Erreur orpheline", "content": "", "causes": "", "solution": "", "createdAt": "2026-04-02T10:00:00.000Z", "projectIds": [] }
+  ],
+  "trashedNotes": [
+    {
+      "note": { "id": "n_old", "title": "Ancienne note", "content": "contenu conservé", "tags": ["archive"], "createdAt": "2025-12-01T10:00:00.000Z", "updatedAt": "2025-12-02T10:00:00.000Z" },
+      "deletedAt": "2026-09-15T10:00:00.000Z",
+      "links": [
+        { "projectId": "p_alpha", "modules": [{ "id": "mod_note_old", "type": "note", "refId": "n_old", "title": "Archive" }] },
+        { "projectId": "p_deleted", "modules": [{ "id": "mod_x", "type": "note", "refId": "n_old" }] }
+      ]
+    }
+  ],
+  "weekPresets": [
+    {
+      "id": "week-default",
+      "name": "Semaine école",
+      "slots": [
+        { "id": "s_1", "title": "Cours", "day": 0, "start": "08:00", "end": "12:00", "description": "Amphi", "location": "Campus", "people": ["Léa", "Tom"], "color": "#2563eb" },
+        { "id": "s_2", "title": "Alpha", "day": 0, "start": "14:00", "end": "16:30", "projectId": "p_alpha", "link": "https://example.com/alpha" },
+        { "id": "s_3", "title": "Sport", "day": 6, "start": "10:00", "end": "11:00", "color": "#abc" },
+        { "id": "s_4", "title": "Projet disparu", "day": 2, "start": "09:00", "end": "10:00", "projectId": "p_deleted" }
+      ],
+      "wakeTimes": ["07:00", "07:00", "07:30", "07:00", "07:00", "09:00", "10:00"]
+    },
+    {
+      "id": "week-preset_vac",
+      "name": "Vacances",
+      "slots": [
+        { "id": "s_1", "title": "Cours (copie)", "day": 0, "start": "09:00", "end": "11:00" },
+        { "id": "s_2", "title": "Alpha", "day": 0, "start": "14:00", "end": "16:30", "projectId": "p_alpha" }
+      ],
+      "wakeTimes": ["09:00", "09:00", "09:00", "09:00", "09:00", "10:00", "10:00"]
+    }
+  ],
+  "activeWeekPresetId": "week-preset_vac",
+  "weekSlots": [
+    { "id": "s_1", "title": "Cours (copie)", "day": 0, "start": "09:00", "end": "11:00" },
+    { "id": "s_2", "title": "Alpha", "day": 0, "start": "14:00", "end": "16:30", "projectId": "p_alpha" }
+  ],
+  "wakeTimes": ["09:00", "09:00", "09:00", "09:00", "09:00", "10:00", "10:00"]
+}

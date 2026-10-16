@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { runSimpleChecks, type CheckResult } from '../lib/simpleChecks'
 export function TestPanel() {
   const [results, setResults] = useState<CheckResult[] | null>(null)
-  return <section className="bg-surface border border-border rounded-xl p-5 mt-4" style={{ maxWidth: 560 }}>
+  return <section className="border-t border-border pt-7">
     <h3 className="text-[15px] font-bold mb-3">Tests simples</h3>
     <p className="text-sm text-text-muted mb-3">Vérifie la logique des onglets et les horaires de l’agenda. Ces vérifications intégrées ne modifient pas tes données. La suite Vitest et les tests d’interface se lancent depuis le projet.</p>
     <button type="button" className="bg-accent text-accent-text px-4 py-2 rounded-lg cursor-pointer" onClick={() => setResults(runSimpleChecks())}>Lancer les tests</button>

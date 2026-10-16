@@ -45,6 +45,8 @@ export function StatusPill({
   return (
     <Tag
       onClick={onClick}
+      title={onClick ? `Changer le statut : ${label}` : undefined}
+      aria-label={onClick ? `Changer le statut : ${label}` : undefined}
       className={`text-[11px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap ${
         onClick ? 'cursor-pointer' : ''
       } ${TONE_CLASSES[tone]} ${className}`}
@@ -151,7 +153,7 @@ export function GhostButton({
     <button
       type="button"
       onClick={onClick}
-      title={title}
+      title={title} aria-label={title}
       className={`inline-flex items-center gap-1.5 border-none bg-transparent text-text-faint text-[12.5px] font-semibold px-2 py-1 rounded-md cursor-pointer hover:bg-surface-hover hover:text-text transition ${className}`}
     >
       {children}
@@ -174,7 +176,7 @@ export function IconButton({
     <button
       type="button"
       onClick={onClick}
-      title={title}
+      title={title} aria-label={title}
       className={`w-8 h-8 flex-shrink-0 border border-border bg-surface2 text-text-muted rounded-lg flex items-center justify-center cursor-pointer hover:bg-surface-hover transition ${className}`}
     >
       {children}

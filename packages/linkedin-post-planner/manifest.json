@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "kind": "package",
+  "id": "lfantine.linkedin-post-planner",
+  "name": "LinkedIn Post Planner",
+  "description": "Idées, planning, images, tags et historique de tes posts LinkedIn.",
+  "author": "Loan",
+  "version": "1.0.0",
+  "hostApi": "^1.0.0",
+  "dependencies": {},
+  "permissions": {},
+  "storageVersion": 1,
+  "contributions": [
+    { "id": "planner", "type": "major", "name": "Posts LinkedIn", "entry": "planner.html", "icon": "calendar", "integrations": [], "instanceLabel": "Profil", "minInstances": 1 }
+  ]
+}

@@ -1,3 +1,8 @@
+import { useComposition } from '../lib/composition'
+import { PlacementEditor } from './PlacementEditor'
+import { ModuleHost } from './ModuleHost'
+import type { CoreBlockType } from '../../shared/core'
+import { resolveCoreContribution } from '../../shared/contributionRegistry'
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import type { ErrorEntry, ModuleType, Note, Project, ProjectModule, TaskStatus } from '../lib/types'
@@ -10,6 +15,12 @@ import { TaskTree } from './TaskTree'
 import { TaskKanban } from './TaskKanban'
 import { DeadlineList } from './DeadlineList'
 import { Markdown } from './Markdown'
+import { DraftInput, DraftTextarea } from './DraftFields'
+import { TableModule } from './TableModule'
+import { createTableModule } from '../lib/tables'
+import type { TablePreset } from '../lib/tables'
+import { TablePresetPicker } from './TablePresetPicker'
+import { EditableModuleTitle } from './EditableModuleTitle'
 import { ChartModuleBody } from './ChartModule'
 import {
   ModuleCatalogGrid,
@@ -82,8 +93,8 @@ export function ModulesColumn({
   setLayout: (projectId: string, layout: ProjectModule[]) => void
   addModule: (projectId: string, module: ProjectModule) => void
   removeModule: (projectId: string, moduleId: string) => void
-  updateModule: (projectId: string, moduleId: string, patch: Partial<ProjectModule>) => void
-  updateNote: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags' | 'raw'>>) => void
+  updateModule: (projectId: string, moduleId: string, patch: Partial<ProjectModule>, expectedRevision?: number) => Promise<boolean>
+  updateNote: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'tags' | 'raw'>>, expectedRevision?: number) => Promise<boolean>
   updateProject: (projectId: string, patch: Partial<Project>) => void
   addTask: (projectId: string, name: string) => void
   addSubtask: (projectId: string, parentId: string, name: string) => void
@@ -96,6 +107,9 @@ export function ModulesColumn({
   onOpenTask: (taskId: string) => void
 }) {
   const router = useRouter()
+  const composition = useComposition()
+  const [packageEditor, setPackageEditor] = useState<ProjectModule | 'new' | null>(null)
+  const minors = composition.snapshot?.contributions.filter(item => item.type === 'minor') ?? []
   const layout = project.layout && project.layout.length > 0 ? project.layout : defaultProjectLayout()
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -124,9 +138,10 @@ export function ModulesColumn({
   }
 
   function renderModuleBody(mod: ProjectModule) {
-    const drag = { onDragStart: () => setDragId(mod.id), onDragEnd: resetDrag }
-    switch (mod.type) {
-      case 'stack':
+    if (mod.type === 'external') return <><div className="flex gap-3 mb-3"><button onClick={() => setPackageEditor(mod)}>Configurer le module</button><button onClick={() => removeModule(project.id, mod.id)}>Retirer le module</button></div><ModuleHost compact key={JSON.stringify([mod.binding, mod.config])} request={{ kind: 'project', projectId: project.id, placementId: mod.id }} /></>
+    const drag = { ...(mod.customize_title && mod.title ? { title: mod.title } : {}), customize_title: mod.customize_title ?? mod.type === 'table', onTitleChange: (title: string) => updateModule(project.id, mod.id, { title }), onDragStart: () => setDragId(mod.id), onDragEnd: resetDrag }
+    const adapters: Record<CoreBlockType, () => React.ReactNode> = {
+      stack: () => {
         return (
           <div>
             <ModuleHeader
@@ -141,7 +156,8 @@ export function ModulesColumn({
             />
           </div>
         )
-      case 'tasks':
+      },
+      tasks: () => {
         return (
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
@@ -233,7 +249,8 @@ export function ModulesColumn({
             )}
           </div>
         )
-      case 'deadlines':
+      },
+      deadlines: () => {
         return (
           <div>
             <ModuleHeader
@@ -246,10 +263,12 @@ export function ModulesColumn({
               editing={deadlinesEditing}
               onAdd={(label, date) => addDeadline(project.id, label, date)}
               onToggle={(deadlineId) => toggleDeadlineDone(project.id, deadlineId)}
+              onRemove={(deadlineId) => updateProject(project.id, { deadlines: project.deadlines.filter((deadline) => deadline.id !== deadlineId) })}
             />
           </div>
         )
-      case 'note': {
+      },
+      note: () => {
         const note = notes.find((n) => n.id === mod.refId)
         return (
           <div>
@@ -263,8 +282,8 @@ export function ModulesColumn({
             {note ? (
               <>
                 {editingNoteId === note.id && <div className="flex flex-col gap-3 mb-3">
-                  <Input aria-label="Titre de la note" value={note.title} onChange={(e) => updateNote(note.id, { title: e.target.value })} />
-                  <Textarea aria-label="Contenu de la note" value={note.content} onChange={(e) => updateNote(note.id, { content: e.target.value })} className="min-h-64 w-full" />
+                  <DraftInput aria-label="Titre de la note" value={note.title} resetKey={note.id} revision={note.revision} onCommit={(title, revision) => updateNote(note.id, { title }, revision)} />
+                  <DraftTextarea aria-label="Contenu de la note" value={note.content} resetKey={note.id} revision={note.revision} onCommit={(content, revision) => updateNote(note.id, { content }, revision)} className="min-h-64 w-full" />
                   <p className="text-xs text-text-faint">Modifications enregistrées automatiquement.</p>
                 </div>}
                 {note.tags.length > 0 && (
@@ -299,8 +318,8 @@ export function ModulesColumn({
             )}
           </div>
         )
-      }
-      case 'error': {
+      },
+      error: () => {
         const err = errors.find((e) => e.id === mod.refId)
         return (
           <div>
@@ -324,8 +343,8 @@ export function ModulesColumn({
             )}
           </div>
         )
-      }
-      case 'image': {
+      },
+      image: () => {
         const editing = isModuleEditing(mod)
         return (
           <div>
@@ -348,8 +367,14 @@ export function ModulesColumn({
             />
           </div>
         )
-      }
-      case 'chart': {
+      },
+      table: () => {
+        return <div>
+          <ModuleHeader title={mod.title || 'Candidatures'} onRemove={() => removeModule(project.id, mod.id)} {...drag} />
+          <TableModule module={mod} revision={project.revision} onChange={(patch, revision) => updateModule(project.id, mod.id, patch, revision)} />
+        </div>
+      },
+      chart: () => {
         const editing = isModuleEditing(mod)
         return (
           <div>
@@ -366,10 +391,11 @@ export function ModulesColumn({
               {...drag}
             />
             {editing && (
-              <Input
+              <DraftInput
                 aria-label="Titre du graphique"
                 value={mod.title || ''}
-                onChange={(e) => updateModule(project.id, mod.id, { title: e.target.value })}
+                revision={project.revision}
+                onCommit={(title, revision) => updateModule(project.id, mod.id, { title }, revision)}
                 placeholder="Titre du graphique (optionnel)…"
                 className="w-full mb-3"
               />
@@ -382,9 +408,9 @@ export function ModulesColumn({
           </div>
         )
       }
-      default:
-        return null
     }
+    const resolved = resolveCoreContribution({ packageId: 'core', contributionId: mod.type }, 'minor')
+    return resolved?.type === 'minor' ? adapters[resolved.adapter]() : <p role="status">Module indisponible. Sa configuration est conservée.</p>
   }
 
   return (
@@ -423,6 +449,10 @@ export function ModulesColumn({
         )
       })}
 
+      <GhostButton onClick={() => setPackageEditor('new')}>Ajouter un module de package</GhostButton>
+      {packageEditor && <PlacementEditor title="Module de package" contributions={packageEditor === 'new' ? minors : minors.filter(item => item.ref.packageId === packageEditor.contribution?.packageId && item.ref.contributionId === packageEditor.contribution?.contributionId)}
+        initial={packageEditor === 'new' ? undefined : { ref: `${packageEditor.contribution?.packageId}/${packageEditor.contribution?.contributionId}`, binding: packageEditor.binding ?? { mode: 'none' }, config: packageEditor.config ?? {} }}
+        onClose={() => setPackageEditor(null)} onSave={async (descriptor, binding, config) => !!await composition.mutate(packageEditor === 'new' ? { kind: 'project.add', projectId: project.id, contribution: descriptor.ref, binding, config } : { kind: 'project.configure', projectId: project.id, placementId: packageEditor.id, binding, config })} />}
       <GhostButton onClick={() => setAddModalOpen(true)}>
         <PlusIcon size={12} /> Ajouter un module
       </GhostButton>
@@ -435,9 +465,11 @@ export function ModulesColumn({
           pinnedNoteIds={layout.filter((m) => m.type === 'note').map((m) => m.refId)}
           pinnedErrorIds={layout.filter((m) => m.type === 'error').map((m) => m.refId)}
           onClose={() => setAddModalOpen(false)}
-          onAdd={(type) => {
+          onAdd={(type, preset) => {
             if (type === 'image') {
               addModule(project.id, { id: uid('mod'), type: 'image', title: '', imageUrl: '', text: '' })
+            } else if (type === 'table') {
+              addModule(project.id, createTableModule(uid('mod'), preset || 'applications'))
             } else if (type === 'chart') {
               addModule(project.id, { id: uid('mod'), type: 'chart', title: '', chart: { kind: 'bar', points: [] } })
             } else {
@@ -486,6 +518,8 @@ export function ModulesColumn({
 
 function ModuleHeader({
   title,
+  customize_title = false,
+  onTitleChange,
   icon,
   right,
   onDragStart,
@@ -493,6 +527,8 @@ function ModuleHeader({
   onRemove,
 }: {
   title: string
+  customize_title?: boolean
+  onTitleChange?: (title: string) => void
   icon?: React.ReactNode
   right?: React.ReactNode
   onDragStart: () => void
@@ -514,13 +550,13 @@ function ModuleHeader({
         <GripIcon size={14} />
       </span>
       {icon}
-      <h3 className="text-[15px] font-bold flex-1 truncate">{title}</h3>
+      <EditableModuleTitle title={title} onChange={customize_title ? onTitleChange : undefined} />
       {right}
       {onRemove && (
         <button
           type="button"
           onClick={onRemove}
-          className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer flex-shrink-0"
+          className="border-none bg-transparent text-text-faint hover:text-danger cursor-pointer flex-shrink-0" title="Supprimer cet élément" aria-label="Supprimer cet élément"
         >
           <TrashIcon size={13} />
         </button>
@@ -671,13 +707,14 @@ function AddModuleModal({
   pinnedNoteIds: (string | undefined)[]
   pinnedErrorIds: (string | undefined)[]
   onClose: () => void
-  onAdd: (type: ModuleType) => void
+  onAdd: (type: ModuleType, preset?: TablePreset) => void
   onAddNote: (noteId: string) => void
   onAddError: (errorId: string) => void
 }) {
   const { query, setQuery, category, setCategory, filtered } = useModuleCatalogFilter()
   const [pickerType, setPickerType] = useState<'note' | 'error' | null>(null)
   const [pickerQuery, setPickerQuery] = useState('')
+  const [tablePicker, setTablePicker] = useState(false)
 
   const availableNotes = linkedNotes.filter((n) => !pinnedNoteIds.includes(n.id))
   const availableErrors = linkedErrors.filter((e) => !pinnedErrorIds.includes(e.id))
@@ -690,6 +727,7 @@ function AddModuleModal({
 
   function handleSelect(entry: ModuleCatalogEntry) {
     if (remainingFor(entry) === 0) return
+    if (entry.type === 'table') { setTablePicker(true); return }
     if (entry.kind === 'picker') {
       setPickerQuery('')
       setPickerType(entry.type as 'note' | 'error')
@@ -697,6 +735,11 @@ function AddModuleModal({
     }
     onAdd(entry.type)
   }
+
+  if (tablePicker) return <Modal open onClose={onClose} title="Nouvelle table" compact center width={460}>
+    <GhostButton onClick={() => setTablePicker(false)}>← Retour aux modules</GhostButton>
+    <TablePresetPicker onSelect={(preset) => onAdd('table', preset)} />
+  </Modal>
 
   if (pickerType) {
     const items: (Note | ErrorEntry)[] = pickerType === 'note' ? availableNotes : availableErrors
@@ -708,7 +751,7 @@ function AddModuleModal({
         <button
           type="button"
           onClick={() => setPickerType(null)}
-          className="flex items-center gap-1.5 border-none bg-transparent text-text-muted cursor-pointer text-[13px] mb-3 p-0 self-start"
+          className="flex items-center gap-1.5 border-none bg-transparent text-text-muted cursor-pointer text-[13px] mb-3 p-0 self-start" title="Revenir à la page précédente" aria-label="Revenir à la page précédente"
         >
           <ArrowLeftIcon size={13} /> Retour aux modules
         </button>

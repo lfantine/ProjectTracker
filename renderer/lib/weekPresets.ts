@@ -1,17 +1,8 @@
 import type { AppData } from './types'
-import { normalizeWakeTimes, normalizeWeekSlots, type WeekSlot } from './weekSchedule'
+import { normalizeWakeTimes, normalizeWeekPresets, type WeekPreset } from '../../shared/week'
 
-export interface WeekPreset { id: string; name: string; slots: WeekSlot[]; wakeTimes: string[] }
-export function normalizeWeekPresets(raw: unknown, activeId: unknown, slots: unknown, wakeTimes: unknown) {
-  const presets: WeekPreset[] = []
-  for (const entry of Array.isArray(raw) ? raw : []) {
-    if (!entry || typeof entry.id !== 'string' || !entry.id || typeof entry.name !== 'string' || !entry.name.trim() || presets.some((p) => p.id === entry.id)) continue
-    presets.push({ id: entry.id, name: entry.name.trim(), slots: normalizeWeekSlots(entry.slots), wakeTimes: normalizeWakeTimes(entry.wakeTimes) })
-  }
-  if (!presets.length) presets.push({ id: 'week-default', name: 'Ma semaine', slots: normalizeWeekSlots(slots), wakeTimes: normalizeWakeTimes(wakeTimes) })
-  const active = presets.find((preset) => preset.id === activeId) || presets[0]
-  return { weekPresets: presets, activeWeekPresetId: active.id, weekSlots: active.slots, wakeTimes: active.wakeTimes }
-}
+export { normalizeWeekPresets, type WeekPreset } from '../../shared/week'
+
 function weeks(data: AppData) {
   return normalizeWeekPresets(data.weekPresets, data.activeWeekPresetId, data.weekSlots, data.wakeTimes)
 }

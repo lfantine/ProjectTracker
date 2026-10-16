@@ -6,6 +6,8 @@ export function runSimpleChecks(): CheckResult[] {
     { name: 'Un onglet ne peut pas être ouvert deux fois', category: 'Logique', run: () => openProjectTab(openProjectTab([], 'test'), 'test').length === 1 },
     { name: 'Un onglet épinglé reste ouvert', category: 'Logique', run: () => closeProjectTab([{ projectId: 'test', pinned: true }], 'test').length === 1 },
     { name: 'Un onglet libre peut être fermé', category: 'Logique', run: () => closeProjectTab([{ projectId: 'test', pinned: false }], 'test').length === 0 },
+    { name: 'Un nouveau projet remplace l’onglet temporaire', category: 'Logique', run: () => { const tabs = openProjectTab([{ projectId: 'ancien', pinned: false }], 'nouveau'); return tabs.length === 1 && tabs[0].projectId === 'nouveau' } },
+    { name: 'La navigation conserve les épingles', category: 'Logique', run: () => { const tabs = openProjectTab([{ projectId: 'epingle', pinned: true }, { projectId: 'ancien', pinned: false }], 'nouveau'); return tabs.length === 2 && tabs[0].projectId === 'epingle' && tabs[0].pinned && tabs[1].projectId === 'nouveau' } },
     { name: 'Un horaire inversé est refusé', category: 'Agenda', run: () => !!slotError({ title: 'Test', day: 0, start: '10:00', end: '09:00' }, []) },
   ]
   return checks.map((check) => {

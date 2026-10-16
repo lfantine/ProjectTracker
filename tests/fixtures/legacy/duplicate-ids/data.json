@@ -1,0 +1,11 @@
+{
+  "categories": ["Software"],
+  "platforms": { "dev": ["PC"], "video": [] },
+  "folders": [],
+  "projects": [
+    { "id": "p_dup", "name": "Premier", "type": "dev", "category": "Software", "platforms": [], "tags": [], "status": "actif", "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z", "noteIds": [], "errorIds": [], "checklist": [], "tasks": [], "deadlines": [], "links": [], "layout": [] },
+    { "id": "p_dup", "name": "Second", "type": "dev", "category": "Software", "platforms": [], "tags": [], "status": "actif", "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z", "noteIds": [], "errorIds": [], "checklist": [], "tasks": [], "deadlines": [], "links": [], "layout": [] }
+  ],
+  "notes": [],
+  "errors": []
+}

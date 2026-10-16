@@ -1,0 +1,15 @@
+{
+  "manifestVersion": 1,
+  "kind": "package",
+  "id": "example.boards",
+  "name": "Tableaux",
+  "author": "Exemple",
+  "version": "1.0.0",
+  "hostApi": "^1.0.0",
+  "dependencies": {},
+  "permissions": {},
+  "storageVersion": 1,
+  "contributions": [
+    { "id": "board", "type": "major", "name": "Tableau", "entry": "board/index.html", "icon": "chart", "integrations": [], "instanceLabel": "Tableau" }
+  ]
+}

@@ -1,6 +1,6 @@
 appId: com.example.nextron
-productName: My Nextron App
-copyright: Copyright © 2026 Yoshihide Shiono
+productName: amber
+copyright: Copyright © 2026 amber contributors
 directories:
   output: dist
   buildResources: resources
@@ -10,3 +10,20 @@ files:
       - package.json
       - app
 publish: null
+
+asar: true
+mac:
+  category: public.app-category.productivity
+  icon: resources/icon.icns
+  target:
+    - dmg
+    - zip
+artifactName: amber-${version}-${os}-${arch}.${ext}
+
+# ZIP readers use real bounded file handles. Keep trusted runtime resources and
+# delivered archives outside ASAR; installed packages/data remain under DataPaths.
+extraResources:
+  - from: app/runtime
+    to: amber-runtime
+    filter:
+      - '**/*'

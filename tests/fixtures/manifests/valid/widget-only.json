@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "kind": "package",
+  "id": "example.clock",
+  "name": "Horloge",
+  "author": "Exemple",
+  "version": "2.0.0-beta.1",
+  "hostApi": "^1.0.0",
+  "dependencies": {},
+  "permissions": { "network": ["https://api.example.com", "https://time.example.org:8443"] },
+  "storageVersion": 3,
+  "migrations": { "entry": "migrations.html", "steps": [1, 2] },
+  "contributions": [
+    {
+      "id": "clock",
+      "type": "widget",
+      "name": "Horloge",
+      "entry": "clock.html",
+      "size": { "default": { "w": 3, "h": 2 }, "min": { "w": 2, "h": 2 }, "max": { "w": 6, "h": 4 } },
+      "config": { "version": 2, "fields": [{ "key": "seconds", "type": "boolean", "label": "Secondes", "default": false }, { "key": "zones", "type": "list", "item": "string", "label": "Fuseaux", "maxItems": 4 }] }
+    }
+  ]
+}

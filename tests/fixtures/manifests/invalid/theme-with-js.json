@@ -1,0 +1,18 @@
+{
+  "manifestVersion": 1,
+  "kind": "extension",
+  "extensionType": "theme",
+  "id": "example.honey",
+  "name": "Miel",
+  "author": "Exemple",
+  "version": "1.0.0",
+  "hostApi": "^1.0.0",
+  "dependencies": {},
+  "permissions": {},
+  "storageVersion": 1,
+  "target": {
+    "package": "core",
+    "version": "^1.0.0"
+  },
+  "theme": "theme.js"
+}

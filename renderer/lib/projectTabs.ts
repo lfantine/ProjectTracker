@@ -23,7 +23,10 @@ export function readProjectTabSession(raw: unknown, projectIds: string[]): Proje
 }
 
 export function openProjectTab(tabs: ProjectTab[], projectId: string): ProjectTab[] {
-  return tabs.some((tab) => tab.projectId === projectId) ? tabs : [...tabs, { projectId, pinned: false }]
+  const existing = tabs.find((tab) => tab.projectId === projectId)
+  const next = tabs.filter((tab) => tab.pinned || tab.projectId === projectId)
+  if (!existing) next.push({ projectId, pinned: false })
+  return next.length === tabs.length && next.every((tab, index) => tab === tabs[index]) ? tabs : next
 }
 
 export function closeProjectTab(tabs: ProjectTab[], projectId: string): ProjectTab[] {

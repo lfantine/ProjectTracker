@@ -1,0 +1,16 @@
+{
+  "categories": ["Software"],
+  "platforms": { "dev": ["PC"], "video": ["YouTube"] },
+  "folders": [],
+  "projects": [],
+  "notes": [],
+  "errors": [],
+  "weekPresets": [
+    { "id": "wk_a", "name": "A", "slots": [{ "id": "s_a", "title": "Depuis presets", "day": 0, "start": "08:00", "end": "09:00" }], "wakeTimes": ["07:00", "07:00", "07:00", "07:00", "07:00", "07:00", "07:00"] },
+    { "id": "wk_b", "name": "a", "slots": [], "wakeTimes": [] },
+    { "id": "", "name": "Sans id", "slots": [] }
+  ],
+  "activeWeekPresetId": "wk_missing",
+  "weekSlots": [{ "id": "s_legacy", "title": "Ancien champ divergent", "day": 3, "start": "10:00", "end": "11:00" }],
+  "wakeTimes": ["05:00", "05:00", "05:00", "05:00", "05:00", "05:00", "05:00"]
+}

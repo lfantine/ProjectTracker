@@ -74,9 +74,13 @@ export const createWindow = (
     ...state,
     ...options,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
       ...options.webPreferences,
+      // Fixed shell security baseline; callers cannot weaken it.
+      nodeIntegration: false,
+      nodeIntegrationInSubFrames: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
     },
   })
 

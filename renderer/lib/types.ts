@@ -1,172 +1,15 @@
-import { normalizeWeekPresets, type WeekPreset } from './weekPresets'
+import { normalizeWeekPresets } from './weekPresets'
 import { syncTaskStatuses } from './taskStatus'
-import { type WeekSlot } from './weekSchedule'
+import type { AppData, ProjectType } from '../../shared/domain'
 
-export type ProjectStatus = 'actif' | 'pause' | 'termine' | 'aborted'
-export type ProjectType = 'dev' | 'video'
-export type FolderKind = 'manual' | 'smart'
-export type FolderDisplayMode = 'category' | 'group'
-export type TaskStatus = 'a_faire' | 'en_cours' | 'fait'
-export type ChecklistStatus =
-  | 'a_faire'
-  | 'en_cours'
-  | 'fait'
-  | 'bloque'
-  | 'a_acheter'
-  | 'commande'
-  | 'achete'
-  | 'a_venir'
-  | 'annule'
-  | 'en_attente'
-  | 'pret'
-export type ChecklistType = 'generique' | 'materiel' | 'projet' | 'evenement'
-export type DeadlineStatus = 'a_venir' | 'fait' | 'depasse'
-export type ThemeMode = 'system' | 'light' | 'dark'
-
-export interface TaskNode {
-  id: string
-  name: string
-  content: string
-  status: TaskStatus
-  children: TaskNode[]
-}
-
-export interface ChecklistItem {
-  id: string
-  label: string
-  type: ChecklistType
-  status: ChecklistStatus
-  link?: string
-  projectRef?: string
-  date?: string
-  description?: string
-}
-
-export interface Deadline {
-  id: string
-  label: string
-  date: string
-  status: DeadlineStatus
-}
-
-export interface ProjectLink {
-  id: string
-  title: string
-  url: string
-}
-
-export interface ProjectFolder {
-  id: string
-  name: string
-  kind: FolderKind
-  displayMode: FolderDisplayMode
-  description?: string // shown on the folder's card in "group" display mode
-  tagFilter?: string[] // smart folders only: match projects with ANY of these tags
-}
-
-export type ModuleType = 'stack' | 'tasks' | 'deadlines' | 'note' | 'error' | 'image' | 'chart'
-
-export type ChartKind = 'bar' | 'line'
-
-export interface ChartPoint {
-  id: string
-  label: string
-  // Kept as typed text so partial input ("-", "1,") survives editing.
-  value: string
-}
-
-export interface ChartConfig {
-  kind: ChartKind
-  points: ChartPoint[]
-}
-
-export interface ProjectModule {
-  id: string
-  type: ModuleType
-  refId?: string
-  title?: string
-  imageUrl?: string
-  text?: string
-  chart?: ChartConfig
-}
-
-export function defaultProjectLayout(): ProjectModule[] {
-  return [
-    { id: 'mod_tasks', type: 'tasks' },
-    { id: 'mod_deadlines', type: 'deadlines' },
-  ]
-}
-
-export interface Project {
-  id: string
-  name: string
-  type: ProjectType
-  category: string
-  platforms: string[]
-  tags: string[]
-  folderId?: string
-  status: ProjectStatus
-  createdAt: string
-  updatedAt: string
-  lastOpenedAt?: string
-  description?: string
-  stack?: string[]
-  path?: string
-  noteIds: string[]
-  errorIds: string[]
-  checklist: ChecklistItem[]
-  tasks: TaskNode[]
-  deadlines: Deadline[]
-  links: ProjectLink[]
-  layout: ProjectModule[]
-}
-
-export interface Note {
-  id: string
-  title: string
-  content: string
-  tags: string[]
-  raw?: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export interface ErrorEntry {
-  id: string
-  title: string
-  content: string
-  causes: string
-  solution: string
-  createdAt: string
-  projectIds: string[]
-}
-
-export interface TrashedNote {
-  note: Note
-  deletedAt: string
-  links: { projectId: string; modules: ProjectModule[] }[]
-}
-
-export interface AppData {
-  weekPresets?: WeekPreset[]
-  activeWeekPresetId?: string
-  wakeTimes?: string[]
-  weekSlots?: WeekSlot[]
-  categories: string[]
-  platforms: Record<ProjectType, string[]>
-  folders: ProjectFolder[]
-  projects: Project[]
-  notes: Note[]
-  errors: ErrorEntry[]
-  trashedNotes?: TrashedNote[]
-}
+export * from '../../shared/domain'
 
 const DEFAULT_PLATFORMS: Record<ProjectType, string[]> = {
   dev: ['PC', 'Tablette', 'Mobile', 'Docker', 'Embarqué', 'Personnel'],
   video: ['YouTube', 'Instagram', 'TikTok', 'Twitch', 'LinkedIn', 'Autre'],
 }
 
-export function emptyAppData(): AppData {
+export function emptyCoreData(): AppData {
   return {
     categories: ['Hardware', 'Software', 'Mobile'],
     platforms: { dev: [...DEFAULT_PLATFORMS.dev], video: [...DEFAULT_PLATFORMS.video] },
@@ -175,8 +18,12 @@ export function emptyAppData(): AppData {
     notes: [],
     errors: [],
     trashedNotes: [],
-    ...normalizeWeekPresets(undefined, undefined, [], undefined),
   }
+}
+
+// Compatibility fixture/legacy conversion only; never the live shell cache.
+export function emptyAppData(): AppData {
+  return { ...emptyCoreData(), ...normalizeWeekPresets(undefined, undefined, [], undefined) }
 }
 
 // Migrates on-disk data saved before ProjectType/folders/tags existed:

@@ -1,0 +1,51 @@
+{
+  "manifestVersion": 1,
+  "kind": "extension",
+  "extensionType": "features",
+  "id": "example.week-summary",
+  "name": "Résumé",
+  "author": "Exemple",
+  "version": "1.0.0",
+  "hostApi": "^1.0.0",
+  "dependencies": {
+    "example.week-like": "^1.2.0"
+  },
+  "permissions": {
+    "core": {
+      "projects": [
+        "read"
+      ]
+    },
+    "exports": [
+      {
+        "package": "example.week-like",
+        "export": "slots"
+      }
+    ]
+  },
+  "storageVersion": 1,
+  "target": {
+    "package": "example.week-like",
+    "version": "^1.2.0"
+  },
+  "features": [
+    {
+      "id": "summary",
+      "name": "Résumé",
+      "slot": {
+        "id": "summary",
+        "version": 1
+      },
+      "entry": "summary.html"
+    },
+    {
+      "id": "summary",
+      "name": "Résumé",
+      "slot": {
+        "id": "summary",
+        "version": 1
+      },
+      "entry": "summary.html"
+    }
+  ]
+}

@@ -43,22 +43,17 @@ export function AppShell({
   return (
     <main className="flex-1 flex flex-col min-w-0 min-h-0 h-full">
       <Head>
-        <title>{`${title} · Tracker`}</title>
+        <title>{`${title} · amber`}</title>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <meta name="application-name" content="amber" />
       </Head>
       <div className="flex items-center justify-between px-8 py-[18px] border-b border-border flex-shrink-0">
         <h1 className="text-[20px] font-bold">{title}</h1>
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => setAiModalOpen(true)}
-            className="flex items-center gap-1.5 border border-accent bg-accent-soft text-accent-soft-text font-bold text-[13px] px-3.5 py-2 rounded-lg cursor-pointer"
-          >
-            <SparklesIcon size={14} />
-            Créer ou modifier avec l&apos;IA
-          </button>
-          <button
-            type="button"
             onClick={() => setPaletteOpen(true)}
+            title="Rechercher ou saisir un prompt pour l’IA (Ctrl K / ⌘K)"
             className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-surface2 text-text-muted cursor-pointer text-[13px]"
           >
             <SearchIcon size={15} />
@@ -67,11 +62,20 @@ export function AppShell({
               Ctrl K
             </kbd>
           </button>
+          <button
+            type="button"
+            aria-label="Créer ou modifier avec l’IA"
+            title="Créer ou modifier avec l’IA"
+            onClick={() => { setPaletteOpen(false); setAiModalOpen(true) }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface2 text-text-muted cursor-pointer hover:bg-surface-hover transition-colors focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+          >
+            <SparklesIcon size={16} />
+          </button>
         </div>
       </div>
-      <div ref={contentRef} className="flex-1 overflow-auto px-8 pt-7 pb-16">{children}</div>
+      <div data-page-scroll ref={contentRef} className="flex-1 overflow-auto px-8 pt-7 pb-16">{children}</div>
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} initialTargetId={aiTargetId} />
 
       <CreateWithAiModal initialTargetId={aiTargetId} open={aiModalOpen} onClose={() => setAiModalOpen(false)} />
     </main>

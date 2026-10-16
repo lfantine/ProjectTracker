@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "kind": "package",
+  "id": "example.project-quote",
+  "name": "Citation de projet",
+  "author": "Exemple",
+  "version": "0.3.1",
+  "hostApi": ">=1.0.0 <2.0.0",
+  "dependencies": {},
+  "permissions": { "core": { "projects": ["read"] } },
+  "storageVersion": 1,
+  "contributions": [
+    {
+      "id": "quote",
+      "type": "minor",
+      "name": "Citation",
+      "entry": "quote.html",
+      "config": {
+        "version": 1,
+        "fields": [
+          { "key": "text", "type": "string", "label": "Texte", "default": "", "multiline": true },
+          { "key": "align", "type": "choice", "label": "Alignement", "options": [{ "value": "left", "label": "Gauche" }, { "value": "center", "label": "Centre" }], "default": "left" }
+        ]
+      }
+    }
+  ]
+}

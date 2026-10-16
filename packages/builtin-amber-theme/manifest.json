@@ -1,0 +1,1 @@
+{"manifestVersion":1,"kind":"extension","extensionType":"theme","id":"builtin.amber-theme","name":"Ambre","description":"Couleurs ambre pour Semaine type, en clair et sombre.","author":"amber","version":"1.0.0","hostApi":"^1.0.0","dependencies":{},"permissions":{},"storageVersion":1,"target":{"package":"builtin.week","version":"^1.0.0"},"theme":"theme.json"}

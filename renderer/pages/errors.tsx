@@ -35,6 +35,8 @@ export default function ErrorsPage() {
   const [viewId, setViewId] = useState<string | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingRevision, setEditingRevision] = useState<number | undefined>()
+  const [saving, setSaving] = useState(false)
   const [tab, setTab] = useState<'manuel' | 'ia'>('manuel')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -121,6 +123,7 @@ export default function ErrorsPage() {
     setAiPrompt('')
     setAiError('')
     setEditingId(e.id)
+    setEditingRevision(e.revision)
     setTab('manuel')
     setTitle(e.title)
     setContent(e.content)
@@ -131,17 +134,21 @@ export default function ErrorsPage() {
     setViewId(null)
   }
 
-  function save() {
-    if (!title.trim()) return
-    if (editingId) {
-      updateError(editingId, { title: title.trim(), content, causes, solution })
-      const previous = data.errors.find((error) => error.id === editingId)?.projectIds || []
-      for (const id of linkedProjectIds) if (!previous.includes(id)) linkError(id, editingId)
-      for (const id of previous) if (!linkedProjectIds.includes(id)) unlinkError(id, editingId)
-    } else {
-      addError({ title: title.trim(), content, causes, solution, projectIds: linkedProjectIds })
-    }
-    closeEditor()
+  async function save() {
+    if (!title.trim() || saving) return
+    setSaving(true)
+    try {
+      if (editingId) {
+        if (!await updateError(editingId, { title: title.trim(), content, causes, solution }, editingRevision)) return
+        if (editingRevision !== undefined) setEditingRevision(editingRevision + 1)
+        const previous = data.errors.find((error) => error.id === editingId)?.projectIds || []
+        for (const id of linkedProjectIds) if (!previous.includes(id) && !await linkError(id, editingId)) return
+        for (const id of previous) if (!linkedProjectIds.includes(id) && !await unlinkError(id, editingId)) return
+      } else {
+        if (!await addError({ title: title.trim(), content, causes, solution, projectIds: linkedProjectIds })) return
+      }
+      closeEditor()
+    } finally { setSaving(false) }
   }
 
   return (
@@ -258,13 +265,12 @@ export default function ErrorsPage() {
               <SecondaryButton onClick={() => openEdit(viewError)}>Modifier</SecondaryButton>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (window.confirm(`Supprimer l'erreur « ${viewError.title} » ?`)) {
-                    removeError(viewError.id)
-                    setViewId(null)
+                    if (await removeError(viewError.id)) setViewId(null)
                   }
                 }}
-                className="flex items-center gap-1.5 border-none bg-transparent text-danger text-[13.5px] font-semibold cursor-pointer"
+                className="flex items-center gap-1.5 border-none bg-transparent text-danger text-[13.5px] font-semibold cursor-pointer" title="Supprimer cet élément" aria-label="Supprimer cet élément"
               >
                 <TrashIcon size={14} /> Supprimer
               </button>
@@ -316,7 +322,7 @@ export default function ErrorsPage() {
               ))}
             </div>
             <div className="flex justify-end mt-4">
-              <PrimaryButton onClick={save} disabled={!title.trim()}>Enregistrer</PrimaryButton>
+              <PrimaryButton onClick={save} disabled={!title.trim() || saving}>Enregistrer</PrimaryButton>
             </div>
           </>
         )}
