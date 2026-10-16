@@ -1,200 +1,157 @@
-<p align="center"><img src="docs/logo/Amber-logo.png" width="120" alt="Logo amber"></p>
+<p align="center"><img src="docs/logo/Amber-logo.png" width="112" alt="Logo amber"></p>
 
 <h1 align="center">amber</h1>
 
 <p align="center">
-  Une app de bureau (Electron + Next.js) pour suivre tes projets perso : tâches, deadlines, notes, erreurs, checklists d'achat… le tout dans une seule fenêtre.
+  <strong>Ton QG de projets perso, 100 % local et extensible par modules.</strong><br>
+  Projets, tâches, échéances, notes, semaine type… et tout ce que tu veux y ajouter.
+</p>
+
+<p align="center">
+  <img src="resources/screenshots/home.png" alt="Accueil d'amber : statistiques, échéances, projets récents et planning du jour" width="900">
 </p>
 
 > [!WARNING]
-> **Projet en développement actif.** Les fonctionnalités, le format des données et l'interface peuvent changer sans préavis. À utiliser en connaissance de cause.
+> **Projet personnel en développement actif.** L'interface, le format des données et le SDK peuvent encore changer.
 
-## Aperçu
+---
 
-| Accueil | Projets | Réglages |
+## Pourquoi amber ?
+
+- 🗂️ **Un seul endroit** pour tes side projects : feuille de route, échéances, achats, notes, erreurs déjà résolues.
+- 🔒 **Tes données restent chez toi.** Une base SQLite locale, aucun compte, aucun serveur. Les modules n'accèdent à Internet que si tu l'autorises.
+- 🧩 **Extensible.** Une fonctionnalité qui manque ? C'est un module : un ZIP qu'on importe en un clic, qui ne peut ni lire tes fichiers ni casser l'app.
+- 🗓️ **Pensé pour avancer.** Semaine type, planning du jour avec progression, conseils, tâches en liste ou en kanban.
+
+## Un aperçu
+
+### Des projets qui avancent
+Feuille de route avec sous-tâches, vue Kanban, échéances, stack, liens, notes liées, graphiques. Chaque projet est composé de **blocs** que tu ajoutes, déplaces et renommes.
+
+<p align="center"><img src="resources/screenshots/project.png" alt="Page d'un projet : feuille de route, échéances, stack, tags et liens" width="900"></p>
+
+### Ta semaine type, en un coup d'œil
+Glisse dans le vide pour créer un créneau, déplace-le, étire-le. Les réveils se règlent sur le bord de chaque journée. Plusieurs semaines nommées (cours, vacances…) et un widget « planning du jour » avec le créneau en cours sur l'accueil.
+
+<p align="center"><img src="resources/screenshots/week.png" alt="Semaine type : calendrier hebdomadaire avec créneaux colorés" width="900"></p>
+
+### Des modules à la carte
+Le **Marketplace** montre une carte par module, avec **un statut** (Actif, À activer, Mise à jour…) et **un seul bouton** pour l'étape suivante. Importer un ZIP l'installe et l'active, chaque étape confirmée par amber.
+
+<p align="center"><img src="resources/screenshots/marketplace.png" alt="Marketplace : modules installés et disponibles" width="900"></p>
+
+### Exemple : LinkedIn Post Planner
+Un module complet construit avec le SDK : idées avec `#tags`, posts Découverte / Expertise / Vente, planning par semaine, image, aperçu de l'accroche, historique et rappel « publié ? » quand l'heure est passée.
+
+<p align="center"><img src="resources/screenshots/linkedin-planner.png" alt="Module LinkedIn Post Planner : planning des posts par semaine" width="900"></p>
+
+### Clair ou sombre
+<p align="center"><img src="resources/screenshots/home-dark.png" alt="Accueil en thème sombre" width="900"></p>
+
+## Ce que tu peux faire
+
+| | |
+| --- | --- |
+| **Projets** | Statut, catégories, dossiers et SmartFolders, onglets épinglables (`⌘1`…`⌘9`), blocs : tâches (liste, kanban, à venir), échéances, checklist d'achats/événements, table, graphique, stack, image/texte, note ou erreur épinglée. |
+| **Notes & erreurs** | Notes Markdown liées aux projets, corbeille avec restauration ; journal d'erreurs avec causes et solution. |
+| **Accueil** | Dashboards personnalisables : déplace et redimensionne les widgets, crée plusieurs dashboards. |
+| **Sidebar** | Shortcuts vers n'importe quelle page, dashboard ou module, rangés en groupes repliables, avec 54 icônes. |
+| **IA (optionnelle)** | Créer ou ajuster un projet, une note ou une erreur en langage naturel, via le programme de ton choix (voir plus bas). |
+| **Sauvegarde** | Sauvegarde vérifiée, restauration, démarrage sans modules tiers, diagnostic exportable. |
+
+## Comment fonctionnent les modules
+
+amber est un **socle** (projets, notes, dashboards, sidebar) autour duquel viennent se brancher des **packages**.
+
+```mermaid
+flowchart LR
+  ZIP["📦 Package (ZIP)<br/>manifest.json + HTML/JS/CSS"] -->|Importer + activer<br/>accord affiché par amber| INST["Installateur natif<br/>vérifie fichiers, droits, dépendances"]
+  INST --> HOST["amber"]
+  HOST -->|frame isolée| PAGE["Page<br/>(module majeur)"]
+  HOST -->|frame isolée| WIDGET["Widget<br/>de dashboard"]
+  HOST -->|frame isolée| BLOCK["Bloc<br/>de projet"]
+  PAGE & WIDGET & BLOCK -->|SDK| SDK["Stockage · instances · navigation<br/>projets (si autorisé) · HTTPS (si autorisé)"]
+  SDK --> DB[("SQLite local")]
+```
+
+**Un package** est un ZIP avec un `manifest.json` et des fichiers web déjà compilés. Il peut apporter trois types de **contributions** :
+
+| Contribution | Où elle apparaît | Exemple |
 | --- | --- | --- |
-| ![Accueil](resources/screenshots/home.png) | ![Projets](resources/screenshots/projects.png) | ![Réglages](resources/screenshots/settings.png) |
+| 📄 **Page** (module majeur) | Page entière, ouverte depuis un shortcut | Le calendrier de Semaine type |
+| ▦ **Widget** | Sur un dashboard | « Planning du jour » |
+| ▤ **Bloc projet** (module mineur) | Dans la page d'un projet | « Créneaux du projet » |
 
-*(Captures avec des données d'exemple.)*
+Une page peut gérer plusieurs **instances** (ex. « Semaine école » et « Semaine vacances », ou un profil LinkedIn perso et un pro). Chaque widget ou bloc suit l'instance active ou une instance précise.
 
-## Ce qu'il faut savoir
+**Sécurité par défaut.** Chaque contribution tourne dans une frame isolée : pas d'accès aux fichiers, à Node, au réseau ni au reste de l'interface. Elle ne parle à amber que par le **SDK** :
 
-### 🔒 Toutes les données restent en local
+```js
+const sdk = await ProjectTracker.ready
+const doc = await sdk.storage.get({ scope: 'instance', collection: 'posts', id: 'p1' })
+await sdk.storage.put({ scope: 'instance', collection: 'posts', id: 'p1', value, expectedRevision: doc?.revision ?? null })
+```
 
-Les données métier sont locales. Le nouveau socle utilise SQLite (`~/.data/ProjectTracker/tracker.sqlite`) et conserve les JSON historiques pour récupération. La migration au premier lancement est admise uniquement dans l’app empaquetée qualifiée (macOS arm64, Electron 41.10.3) ; le développement reste bloqué sur les données personnelles. Les fonctions IA dépendent du programme externe choisi ; un package ne peut joindre que les domaines HTTPS explicitement accordés.
+Les droits supplémentaires (lire tes projets, joindre `https://api.exemple.com`, lire les données d'un autre package) sont **déclarés dans le manifeste** et **acceptés par toi** à l'installation. Désactiver ou désinstaller un module **conserve ses données**.
 
-### 🤖 L'IA passe par un programme externe, au choix
+Aussi : des **thèmes** (couleurs d'un package ou de l'app) et des **compléments** qui s'insèrent dans un emplacement prévu par un autre module (ex. le « Bilan de la semaine » sous Semaine type).
 
-Les fonctionnalités assistées par IA (création guidée de projets/notes/erreurs, réécriture de notes…) n'appellent aucune API directement depuis l'app. Elles délèguent l'appel à un **programme en ligne de commande configurable**, invoqué avec `--request "<texte>"` (et parfois `--format "<texte>"`), dont la réponse est lue sur la sortie standard.
+## Créer ton propre module
 
-Tu choisis ce programme dans **Réglages → Intelligence artificielle** : un champ texte (nom d'un binaire dans le `PATH`, ou chemin complet) plus un bouton pour le sélectionner directement via un sélecteur de fichier. Par défaut, l'app s'attend à trouver un outil nommé `groqtool`, mais n'importe quel exécutable respectant ce contrat d'appel peut être utilisé à la place.
+1. Lis le **[guide de création de modules](docs/packages/CREER-UN-MODULE.md)** : un exemple complet (widget compteur), le manifeste, le SDK, le stockage, les instances, les droits et une checklist.
+2. Écris ton `manifest.json`, ton HTML et ton JS (TypeScript/React possible, compilé pour le navigateur).
+3. Produis le ZIP, puis **Marketplace → Importer un ZIP**.
 
-### 🚧 En développement
+Le module LinkedIn de ce dépôt est un exemple réel : [`packages/linkedin-post-planner`](packages/linkedin-post-planner/README.md).
 
-Ce projet est un outil personnel en construction. Attends-toi à des changements de structure, des bugs, et des fonctionnalités incomplètes.
+```bash
+npm run build:local                             # construit l'app (vide dist/)
+node scripts/build-linkedin-planner-package.mjs # → dist/packages/lfantine.linkedin-post-planner-1.0.1.zip
+npm run start:local                             # puis Marketplace → Importer un ZIP
+```
 
-## Navigation, IA et récupération
-
-- Les projets ouverts restent accessibles dans la barre d’onglets. Épingle un onglet avec le losange pour empêcher sa fermeture ; désépingle-le pour le fermer. Les onglets et l’épinglage sont restaurés au redémarrage.
-- `⌘1` à `⌘9` sur Mac, ou `Ctrl+1` à `Ctrl+9`, ouvre l’onglet correspondant. La position de défilement, le mode de tâches et les filtres sont conservés entre les projets pendant la session.
-- **Créer ou modifier avec l’IA** présélectionne le projet ou la note ouverte. Après génération, utilise **Ajuster cette proposition** pour modifier le brouillon sans repartir de zéro. Tu peux annuler le dernier ajustement et comparer avec la version précédente avant de valider.
-- Une note supprimée rejoint **Notes → Corbeille**. **Annuler** permet de la récupérer immédiatement ; **Restaurer** récupère ensuite son contenu et ses liens aux projets encore présents.
-
-Pour vérifier les changements : `npm test` exécute les tests de régression, et `npm run typecheck` vérifie le code source TypeScript.
-
-## Stack
-
-- [Electron](https://www.electronjs.org/) + [Nextron](https://github.com/saltyshiomix/nextron) — coquille bureau
-- [Next.js](https://nextjs.org/) + React — interface (dossier `renderer/`)
-- TypeScript de bout en bout (processus principal `main/` et interface `renderer/`)
-- SQLite local dans le processus principal ; pas de backend distant. JSON historiques conservés pour récupération.
+Référence détaillée : [format des packages](docs/packages/FORMAT.md) · [registre](docs/packages/REGISTRY.md) · [installateur](docs/packages/INSTALLER.md).
 
 ## Installation
 
-```bash
-# installer les dépendances
-pnpm install
-
-# lancer en mode développement
-pnpm dev
-
-# build de production
-pnpm build
-```
-
-## Configuration de l'IA
-
-1. Ouvre **Réglages** dans l'app.
-2. Dans la section **Intelligence artificielle**, renseigne le nom ou le chemin du programme à exécuter (par défaut `groqtool`), ou clique sur **Choisir un programme** pour le sélectionner via l'explorateur de fichiers.
-3. Ce programme doit accepter `--request <texte>` (et optionnellement `--format <texte>`) et écrire sa réponse sur `stdout`.
-
-## Structure du projet
-
-```
-main/                 Processus principal Electron (IPC, SQLite, installateur et runtime des packages, IA)
-renderer/             Interface Next.js (pages, composants, state)
-shared/               Contrats communs : manifeste, SDK, icônes, limites, schéma JSON publié
-sdk/                  SDK des packages (côté frame) et hôte des frames (côté shell)
-packages/             Sources des packages : Semaine type, extensions livrées, LinkedIn Post Planner
-scripts/              Builds (app, ZIP de packages), tests, qualification
-docs/                 Format des packages, guide de création, stockage, logos
-resources/            Icônes, assets de design, captures d'écran
-PLANS/                Notes personnelles (plan de refonte, journal) — locales, ignorées par Git
-```
-
-## Tests
-
-- `npm test` : tests Vitest / React Testing Library puis les six scripts de régression historiques.
-- `npm run test:unit` : premiers tests de logique, de données et d’interface.
-- `npm run test:watch` : relance Vitest pendant le développement.
-- `npm run typecheck` : vérification TypeScript.
-
-Les tests React Testing Library vérifient les interactions et le DOM dans jsdom ; ils ne valident pas le rendu pixel par pixel. Les parcours Electron utilisent de vrais processus et des profils/données temporaires ; `npm run test:packaged` les rejoue sur une copie de l’app provenant du DMG.
-
-Le bouton « Lancer les tests » dans les Réglages exécute quatre vérifications de logique embarquées, sans modifier les données. Il n’exécute pas la suite de développement Vitest. Les tests réels du programme IA et les diagnostics de fichiers seront ajoutés séparément.
-
-## Personnalisation et shortcuts
-
-- **Personnalisation** présente les packages installés. **CORE** rassemble l'apparence
-  et les préférences de l'application ; les autres cartes donnent accès aux
-  instances, vues et configurations réellement déclarées par chaque package.
-- Les liens de sidebar sont des **shortcuts**. Glisser-déposer pour les ranger ;
-  déposer dans la corbeille qui apparaît en bas pour les retirer, sans effacer
-  de données. **Add a shortcut** permet d'ajouter un lien ou un groupe nommé.
-- Groupes repliables sur un seul niveau : déposer un shortcut sur leur titre
-  pour le ranger, ou dans la zone hors groupe pour l'en sortir. Les groupes se
-  déplacent aussi ; supprimer un groupe conserve ses shortcuts hors groupe.
-  Cliquer sur le nom pour renommer, sur le chevron pour replier. Le sélecteur
-  de shortcuts présente les icônes visuellement avec un aperçu : les 18
-  icônes courantes d'abord, puis **Voir plus** pour les 54 (étoile, idée,
-  objectif, équipe, LinkedIn, sport, café…). Le même catalogue fermé sert aux
-  icônes déclarées par les packages.
-- Dashboard : **Personnaliser le dashboard** à droite active les poignées de
-  déplacement et de redimensionnement aux quatre coins. La corbeille retire un
-  widget, pas ses données. **Ajouter un widget** et **Dashboard** donnent accès
-  aux autres opérations ; l'aide `?` décrit aussi les raccourcis clavier.
-  Hors édition, la disposition n'est pas modifiable. Le shell n'ajoute aucune
-  carte/bordure autour des contenus : chaque contribution choisit son rendu.
-
-## Semaine type
-
-Calendrier à hauteur naturelle utilisant le scroll de page, avec titres
-d’événements en haut et persistants au défilement. Un clic dans le vide
-désélectionne. Planning récurrent lundi–dimanche, avec plusieurs semaines nommées. Un clic
-sélectionne un créneau ; Espace/Entrée ou double-clic ouvre son dialog. Glisser
-dans le vide prépare une création ; glisser un événement le déplace et sa
-poignée inférieure ajuste la durée. Réveils indépendants, sur le bord gauche de
-chaque journée, également déplaçables. Chevauchements et passage minuit refusés.
-
-Les dialogs permettent d'éditer objectif, description, projet, couleur, lieu,
-personnes et lien. La suppression est confirmée. ⌘/Ctrl C/V prépare une copie
-interne, avec nouvelle identité et confirmation. **Gérer les semaines** distingue
-la semaine consultée de l'active ; les widgets peuvent suivre l'active ou une
-instance fixe. Le widget du jour souligne le créneau courant avec progression,
-temps restant et repère d'heure, sans carte englobante imposée.
-
-Le package livré passe en **1.1.2**, sans changement de stockage ni de droits.
-Les anciennes 1.0.0/1.1.0 actives livrées avec amber sont mises à jour via l'installateur et la
-sandbox ; les versions importées manuellement et les désactivations ne sont
-pas remplacées. Détails : [package Semaine type](packages/builtin-week/README.md).
-
-## Marketplace
-
-Deux onglets : **Modules à installer** (packages) et **Modules intégrés** (modules
-de projet fournis avec amber).
-
-- Une carte par module : logo, description, contenu en pictos (Page, Widget,
-  Bloc projet, Thème, Complément), **un statut** (Actif, À activer, Mise à jour,
-  Désactivé, Disponible, Désinstallé) et **un bouton** pour l'étape suivante
-  (Installer, Activer, Mettre à jour, Réactiver, Ouvrir). Sections « Installés »
-  et « Disponibles », recherche et filtre Tout / Modules / Thèmes et compléments.
-- **Importer un ZIP** et **Installer** enchaînent import puis activation, chacun
-  confirmé par une boîte de dialogue native ; un refus laisse le module « À
-  activer ». La fiche du module s'ouvre ensuite : **Ouvrir**, **Ajouter au menu**,
-  **Ajouter à un dashboard / à un projet**, accès demandés, usages, infos
-  techniques repliées, Désactiver / Désinstaller (les données sont conservées).
-- **Lier un dossier** affiche les ZIP qu'il contient dans « Disponibles ».
-- Les problèmes sont écrits en clair (« Nécessite builtin.week », « Version
-  d'amber incompatible »…) et bloquent le bouton concerné.
-
-## Modules majeurs
-
-Une page de module majeur occupe au minimum toute la hauteur visible (moins les
-compléments affichés dessous) : ses dialogs et popups ne sont plus rognés quand
-le contenu est court. Au-delà, elle suit sa hauteur naturelle et le scroll de
-la page. Widgets et blocs de projet gardent la taille de leur emplacement.
-
-## LinkedIn Post Planner
-
-Package externe (non livré avec amber) pour préparer ses posts LinkedIn : idées
-avec `#tags`, type Découverte / Expertise / Vente / Autre, date et heure, contenu
-avec compteur et aperçu de l'accroche, image, onglets Idées / Planning /
-Historique, posts « à confirmer » une fois l'heure passée, répartition des types
-et liens **Ouvrir mon LinkedIn** / **Écrire sur LinkedIn**. Plusieurs profils
-possibles, aucune permission demandée.
+amber est une app de bureau **macOS (Apple Silicon)** construite avec Electron et Next.js.
 
 ```bash
-npm run build:local                            # d'abord : ce build vide dist/
-node scripts/build-linkedin-planner-package.mjs
-npm run start:local                            # Marketplace → Importer un ZIP
+pnpm install          # dépendances
+pnpm dev              # mode développement (modules externes désactivés)
+npm run build:local   # app personnelle : dist/mac-arm64/amber.app
+npm run start:local   # la lancer
 ```
 
-L'archive est `dist/packages/lfantine.linkedin-post-planner-1.0.0.zip`. Détails et
-limites : [README du package](packages/linkedin-post-planner/README.md).
+- Tes données sont dans `~/.data/ProjectTracker/` (SQLite + JSON historiques conservés). La migration depuis les anciennes versions se fait au premier lancement de l'app construite.
+- Les modules externes ne s'exécutent que dans l'app construite (`build:local`), pas en mode `dev`.
+- `npm run build:mac` produit un DMG + ZIP non signés. Détails et limites : [distribution](docs/packages/LOT8-PROGRESS.md), [récupération](docs/storage/RECOVERY.md).
 
-## Distribution et récupération
+### Configurer l'IA (optionnel)
 
-- `npm run build:mac` : DMG + ZIP pour l’architecture macOS courante.
-- `npm run test:packaged` : copie depuis le DMG, démontage, premier lancement normal dans un HOME jetable puis les scénarios isolés sur l’app empaquetée.
-- Usage personnel, sans DMG ni signature : `npm run build:local`, puis `npm run start:local` (ou `npm run build:local:open`). Produit `dist/mac-arm64/amber.app`.
-- Réglages : sauvegarde vérifiée, restauration avec conservation de l’état précédent, démarrage sans tiers et export du diagnostic technique.
+amber n'appelle aucune API d'IA directement. Il exécute **un programme en ligne de commande de ton choix** (par défaut `groqtool`) avec `--request "<texte>"` (et parfois `--format "<texte>"`), et lit sa réponse sur la sortie standard. Choisis-le dans **Réglages → Intelligence artificielle**.
 
-Le lot 8 est terminé pour la **distribution locale macOS arm64 non signée**. Au premier lancement de cette distribution qualifiée, les JSON historiques sont conservés et archivés avant migration SQLite. Les autres plateformes, architectures et versions Electron restent bloquées sur le répertoire personnel. État et limites : [lot 8](docs/packages/LOT8-PROGRESS.md), [récupération](docs/storage/RECOVERY.md). Aucun engagement Windows/Linux ou Gatekeeper/notarisation à ce stade.
+## Pour les développeurs
 
-### Identité visuelle
+| Commande | Rôle |
+| --- | --- |
+| `npm test` | Vitest (logique, interface, services natifs) + scénarios de régression |
+| `npm run typecheck` | TypeScript de chaque couche (shared, main, preload, renderer, sdk, packages) |
+| `npm run test:runtime` | Runtime isolé des modules dans Chromium |
+| `node scripts/e2e.mjs --build` | Parcours Electron complets (reconstruit `app/` et vide `dist/`) |
+| `npm run screenshots` | Régénère les captures de ce README depuis `app/`, avec des données d'exemple |
 
-Logo source : `docs/logo/Amber-logo.png`. Le package Semaine type utilise son propre logo utilisateur (`docs/logo/week-module-logo.png`), inclus dans son archive et affiché dans la personnalisation et le marketplace. Les packages peuvent déclarer un `logo` PNG local optionnel (voir `docs/packages/FORMAT.md`). `npm run brand:assets` génère les variantes transparentes de l’interface, favicon et icônes PNG/ICO (ICNS sur macOS avec `iconutil`), sans modifier le dessin original. Les styles par défaut utilisent une palette ambre claire/sombre ; les thèmes de packages restent prioritaires.
+Tous les tests et les captures utilisent des **répertoires jetables** ; ton répertoire personnel est vérifié avant et après.
 
-## Créer un module / package
+```
+main/        Processus Electron : SQLite, installateur et runtime des modules, IA
+renderer/    Interface Next.js (pages, composants, état)
+shared/      Contrats communs : manifeste, SDK, icônes, limites, schéma JSON publié
+sdk/         SDK des modules (côté frame) et hôte des frames (côté app)
+packages/    Modules du dépôt : Semaine type, Bilan, thème Ambre, LinkedIn Post Planner
+scripts/     Builds (app, ZIP de modules), tests, captures
+docs/        Format des modules, guide de création, stockage et récupération
+PLANS/       Notes de travail locales (ignorées par Git)
+```
 
-Voir le [guide de création de modules](docs/packages/CREER-UN-MODULE.md) : exemple complet, manifeste, SDK, stockage, instances, compilation/ZIP, import, permissions et checklist pour les prochaines sessions. Le futur outillage npm est décrit séparément dans [AUTHORING-TOOLKIT.md](docs/packages/AUTHORING-TOOLKIT.md).
+Stack : Electron + [Nextron](https://github.com/saltyshiomix/nextron), Next.js + React, TypeScript, Tailwind, SQLite (`node:sqlite`), Vitest et Playwright.

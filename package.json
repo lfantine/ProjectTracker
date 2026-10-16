@@ -23,6 +23,7 @@
     "build:mac": "nextron build --mac",
     "test:packaged": "node scripts/qualify-macos.mjs",
     "brand:assets": "node scripts/brand-assets.mjs",
+    "screenshots": "node scripts/readme-screenshots.mjs",
     "build:local": "nextron build --no-pack && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --dir",
     "start:local": "open dist/mac-arm64/amber.app",
     "build:local:open": "npm run build:local && npm run start:local"

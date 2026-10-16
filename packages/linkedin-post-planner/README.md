@@ -1,4 +1,4 @@
-# LinkedIn Post Planner — package 1.0.0
+# LinkedIn Post Planner — package 1.0.1
 
 Package externe `lfantine.linkedin-post-planner`, **non livré** avec amber :
 il s'importe comme ZIP depuis le Marketplace. Une seule contribution, le majeur
@@ -11,10 +11,15 @@ page entreprise…), chacun avec ses posts, images et réglages.
 node scripts/build-linkedin-planner-package.mjs
 ```
 
-Produit `dist/packages/lfantine.linkedin-post-planner-1.0.0.zip` (reproductible).
+Produit `dist/packages/lfantine.linkedin-post-planner-1.0.1.zip` (reproductible).
 Dans amber : **Marketplace → Importer un ZIP** (import puis activation, deux
 accords natifs), puis **Ouvrir** ou **Ajouter au menu** depuis la fiche. Au premier
 lancement, la page propose de créer un profil.
+
+## Versions
+
+- **1.0.1** : logo du package (`assets/logo.png`), majuscule uniquement en début de titre de semaine/mois et de date. Stockage v1 et droits inchangés : importer le ZIP met à jour la 1.0.0 en conservant les posts.
+- **1.0.0** : première version.
 
 ## Fonctionnalités
 
