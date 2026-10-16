@@ -19,7 +19,7 @@ const forceBuild = args.includes('--build')
 const executablePath = process.env.AMBER_E2E_EXECUTABLE
 if (executablePath && !path.isAbsolute(executablePath)) throw Error('Executable absolu requis')
 const filters = args.filter((arg) => !arg.startsWith('--'))
-const personalDir = path.join(os.homedir(), '.data', 'ProjectTracker')
+const personalDirs = [path.join(os.homedir(), '.data', 'amber'), path.join(os.homedir(), '.data', 'ProjectTracker')]
 
 function fingerprint(dir) {
   if (!fs.existsSync(dir)) return 'absent'
@@ -48,7 +48,7 @@ const scenarios = fs.readdirSync(scenarioDir)
   .filter((file) => !filters.length || filters.some((filter) => file.includes(filter)))
   .sort()
 
-const personalBefore = fingerprint(personalDir)
+const personalBefore = personalDirs.map(fingerprint).join(',')
 const tempRoots = []
 let failures = 0
 
@@ -130,7 +130,7 @@ for (const file of scenarios) {
 }
 
 for (const dir of tempRoots) fs.rmSync(dir, { recursive: true, force: true })
-const personalAfter = fingerprint(personalDir)
+const personalAfter = personalDirs.map(fingerprint).join(',')
 if (personalBefore !== personalAfter) {
   failures++
   console.error('  ✗ Le répertoire de données personnel a changé pendant les scénarios.')

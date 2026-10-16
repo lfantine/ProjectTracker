@@ -6,7 +6,7 @@ import { execSync, spawn } from 'child_process'
 import { app, ipcMain, dialog, shell, BrowserWindow, protocol, type IpcMainInvokeEvent } from 'electron'
 import serve from 'electron-serve'
 import { createWindow } from './helpers/create-window'
-import { getDataPaths, resolveUserDataOverride, type DataPaths } from './helpers/paths'
+import { adoptLegacyDataDir, adoptLegacyDirectory, DATA_DIR_ENV, getDataPaths, resolveUserDataOverride, type DataPaths } from './helpers/paths'
 import { callAiTool } from './aiTool'
 import type { CoreRuntime } from './core/startup'
 import { startQualifiedCore } from './core/qualification'
@@ -34,10 +34,17 @@ const safeMode = process.argv.includes('--safe-mode') || process.env.AMBER_SAFE_
 
 // Resolve every location before anything touches the disk: an invalid test
 // override must stop the app instead of falling back to personal data.
+initializeRelease({ packaged: app.isPackaged, production: isProd, platform: process.platform, arch: process.arch, electron: process.versions.electron, test: process.env.PROJECT_TRACKER_TEST === '1' })
 let userDataOverride: string | undefined
 let paths: DataPaths
 try {
   userDataOverride = resolveUserDataOverride()
+  // Only the qualified release opens personal data, so only it moves the
+  // pre-amber directory. On failure the legacy location keeps being used.
+  if (isQualifiedRelease() && process.env[DATA_DIR_ENV] === undefined) {
+    try { adoptLegacyDataDir() }
+    catch (error) { console.error('Déplacement des données vers amber impossible', error instanceof Error ? error.message : error) }
+  }
   paths = getDataPaths()
 } catch (error) {
   console.error(error instanceof Error ? error.message : error)
@@ -62,7 +69,6 @@ function killDevServer() {
   }
 }
 
-initializeRelease({ packaged: app.isPackaged, production: isProd, platform: process.platform, arch: process.arch, electron: process.versions.electron, test: process.env.PROJECT_TRACKER_TEST === '1' })
 // Only the qualified installed release or the isolated qualification harness.
 const modulesRequested = !safeMode && isProd && (isQualifiedRelease() || (process.env.PROJECT_TRACKER_TEST === '1' && process.env.PROJECT_TRACKER_MODULES === '1'))
 if (modulesRequested) {
@@ -80,8 +86,16 @@ if (modulesRequested) {
 }
 if (userDataOverride) {
   app.setPath('userData', userDataOverride)
-} else if (!isProd) {
-  app.setPath('userData', `${app.getPath('userData')} (development)`)
+} else {
+  // Electron profile (window geometry, historical localStorage) formerly named
+  // after the nextron template. Moved before Chromium opens it. Built from
+  // appData: app.getPath('userData') creates the directory and would block it.
+  const suffix = isProd ? '' : ' (development)'
+  const appData = app.getPath('appData')
+  const profile = path.join(appData, `${app.getName()}${suffix}`)
+  try { adoptLegacyDirectory(path.join(appData, `my-nextron-app${suffix}`), profile) }
+  catch (error) { console.error('Déplacement du profil Electron impossible', error instanceof Error ? error.message : error) }
+  app.setPath('userData', profile)
 }
 
 let booting = true

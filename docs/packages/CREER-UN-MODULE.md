@@ -332,7 +332,7 @@ La suppression d'un emplacement ne supprime pas ses données métier.
 
 ### Pour les sessions de développement / tests
 
-Ne pas tester par défaut sur `~/.data/ProjectTracker` et ne pas lancer
+Ne pas tester par défaut sur `~/.data/amber` (ni l'ancien `~/.data/ProjectTracker`) et ne pas lancer
 `start:local` automatiquement pour vérifier un package. Ce lancement volontaire
 utilise le profil personnel de l'utilisateur.
 

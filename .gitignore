@@ -11,3 +11,4 @@ next-env.d.ts
 
 # notes personnelles (plan de refonte, journal) : jamais versionnées
 /PLANS
+/AGENTS.md

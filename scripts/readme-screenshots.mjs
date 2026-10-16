@@ -14,7 +14,7 @@ import { buildLinkedinPlannerPackage } from './build-linkedin-planner-package.mj
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const output = path.join(root, 'resources', 'screenshots')
-const personal = path.join(os.homedir(), '.data', 'ProjectTracker')
+const personalDirs = [path.join(os.homedir(), '.data', 'amber'), path.join(os.homedir(), '.data', 'ProjectTracker')]
 if (!fs.existsSync(path.join(root, 'app', 'main.js'))) throw Error('Build absent : lancer `npx nextron build --no-pack` d’abord.')
 
 function fingerprint(dir) {
@@ -92,7 +92,7 @@ const dataDir = path.join(temp, 'data'), profileDir = path.join(temp, 'profile')
 fs.mkdirSync(dataDir); fs.mkdirSync(profileDir)
 fs.writeFileSync(path.join(dataDir, 'data.json'), JSON.stringify(sample))
 fs.writeFileSync(path.join(dataDir, 'renderer-prefs.json'), JSON.stringify({ tracker_theme_mode: 'light', tracker_project_tabs_v1: JSON.stringify({ tabs: [{ projectId: 'p_amber', pinned: true }, { projectId: 'p_devlog', pinned: false }], activeId: 'p_amber' }) }))
-const before = fingerprint(personal)
+const before = personalDirs.map(fingerprint).join(',')
 const zip = await buildLinkedinPlannerPackage(path.join(temp, 'zip'))
 
 const app = await electron.launch({ args: [root], cwd: root, timeout: 30_000, env: { ...process.env, NODE_ENV: 'production', PROJECT_TRACKER_TEST: '1', PROJECT_TRACKER_MODULES: '1', PROJECT_TRACKER_DATA_DIR: dataDir, PROJECT_TRACKER_USER_DATA_DIR: profileDir } })
@@ -173,6 +173,6 @@ try {
 } finally {
   await app.close().catch(() => {})
   fs.rmSync(temp, { recursive: true, force: true })
-  if (fingerprint(personal) !== before) { console.error('  ✗ Le répertoire personnel a changé !'); process.exitCode = 1 }
+  if (personalDirs.map(fingerprint).join(',') !== before) { console.error('  ✗ Le répertoire personnel a changé !'); process.exitCode = 1 }
   else console.log('  ✓ Répertoire de données personnel inchangé')
 }

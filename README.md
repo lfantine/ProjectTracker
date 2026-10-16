@@ -123,7 +123,7 @@ npm run build:local   # app personnelle : dist/mac-arm64/amber.app
 npm run start:local   # la lancer
 ```
 
-- Tes données sont dans `~/.data/ProjectTracker/` (SQLite + JSON historiques conservés). La migration depuis les anciennes versions se fait au premier lancement de l'app construite.
+- Tes données sont dans `~/.data/amber/` (SQLite + JSON historiques conservés). Un ancien dossier `~/.data/ProjectTracker/` est renommé automatiquement au premier lancement de l'app construite, si `~/.data/amber/` n'existe pas encore. La migration depuis les anciennes versions se fait au premier lancement de l'app construite.
 - Les modules externes ne s'exécutent que dans l'app construite (`build:local`), pas en mode `dev`.
 - `npm run build:mac` produit un DMG + ZIP non signés. Détails et limites : [distribution](docs/packages/LOT8-PROGRESS.md), [récupération](docs/storage/RECOVERY.md).
 

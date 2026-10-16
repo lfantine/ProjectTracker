@@ -23,8 +23,8 @@ export const scenarios = {
   // An override pointing at the personal directory is refused in test mode.
   async 'refus du répertoire personnel'({ launch }) {
     const os = await import('node:os')
-    await assert.rejects(
-      launch({ PROJECT_TRACKER_DATA_DIR: path.join(os.homedir(), '.data', 'ProjectTracker') })
-    )
+    for (const name of ['amber', 'ProjectTracker']) {
+      await assert.rejects(launch({ PROJECT_TRACKER_DATA_DIR: path.join(os.homedir(), '.data', name) }))
+    }
   },
 }

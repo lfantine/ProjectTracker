@@ -1,9 +1,10 @@
 {
   "private": true,
-  "name": "my-nextron-app",
-  "description": "My application description",
+  "name": "amber",
+  "productName": "amber",
+  "description": "Ton QG de projets perso, 100 % local et extensible par modules.",
   "version": "1.0.0",
-  "author": "Yoshihide Shiono <shiono.yoshihide@gmail.com>",
+  "author": "Loan",
   "type": "module",
   "main": "app/main.js",
   "scripts": {

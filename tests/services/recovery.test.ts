@@ -6,7 +6,7 @@ import { startCore } from '../../main/core/startup'
 import { createBackup, buildExport } from '../../main/core/backup'
 import { restoreRecoveryBackup } from '../../main/core/recovery'
 import { openDatabase } from '../../main/db/database'
-import { defaultDataDir, resolveDataPaths } from '../../main/helpers/paths'
+import { defaultDataDir, legacyDataDir, resolveDataPaths } from '../../main/helpers/paths'
 import { fixturesDir, makeTempDir, testEnv } from './helpers'
 
 function pathsFor(fixture?: string) {
@@ -18,12 +18,14 @@ function pathsFor(fixture?: string) {
 describe('sauvegarde et récupération du socle natif', () => {
   it('bloque la migration personnelle avant qualification sans ouvrir ni créer de données', async () => {
     // The guarded branch never reads the personal directory.
-    const paths = { ...pathsFor(), root: defaultDataDir() }
-    const runtime = await startQualifiedCore(paths)
-    expect(runtime.status).toMatchObject({ mode: 'recovery', reason: 'migration-not-qualified' })
-    expect(runtime.service).toBeNull()
-    expect(fs.existsSync(paths.database)).toBe(false)
-    runtime.close()
+    for (const root of [defaultDataDir(), legacyDataDir()]) {
+      const paths = { ...pathsFor(), root }
+      const runtime = await startQualifiedCore(paths)
+      expect(runtime.status).toMatchObject({ mode: 'recovery', reason: 'migration-not-qualified' })
+      expect(runtime.service).toBeNull()
+      expect(fs.existsSync(paths.database)).toBe(false)
+      runtime.close()
+    }
   })
 
   it('restaure une sauvegarde SQLite cohérente, avec préférences, semaines et composition', async () => {

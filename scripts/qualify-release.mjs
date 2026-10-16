@@ -22,7 +22,7 @@ function fingerprint(dir) {
   }
   walk(dir); return hash.digest('hex')
 }
-const personal = [path.join(os.homedir(), '.data/ProjectTracker'), path.join(os.homedir(), 'Library/Application Support/my-nextron-app')]
+const personal = ['.data/amber', '.data/ProjectTracker', 'Library/Application Support/amber', 'Library/Application Support/my-nextron-app'].map(dir => path.join(os.homedir(), dir))
 const before = personal.map(fingerprint)
 let application
 async function close() {
@@ -59,11 +59,13 @@ async function shell(source) {
 }
 try {
   const home = path.join(temporary, 'home')
-  const data = path.join(home, '.data/ProjectTracker')
-  fs.mkdirSync(data, { recursive: true })
+  // Seeded under the pre-amber name: the first launch must move it.
+  const legacyData = path.join(home, '.data/ProjectTracker'), data = path.join(home, '.data/amber')
+  fs.mkdirSync(legacyData, { recursive: true })
   const fixture = fs.readFileSync('tests/fixtures/legacy/full-current/data.json')
-  fs.writeFileSync(path.join(data, 'data.json'), fixture)
+  fs.writeFileSync(path.join(legacyData, 'data.json'), fixture)
   await launch(home)
+  assert.equal(fs.existsSync(legacyData), false)
   assert.match(await shell('location.href'), /^app:\/\/shell\//)
   assert.equal((await shell('window.api.core.status()')).mode, 'ready')
   const first = await shell('window.api.core.snapshot()')
@@ -97,14 +99,14 @@ try {
   assert.equal(await shell("document.querySelectorAll('iframe').length"), 0)
   await close()
   const broken = path.join(temporary, 'broken')
-  const brokenData = path.join(broken, '.data/ProjectTracker')
+  const brokenData = path.join(broken, '.data/amber')
   fs.mkdirSync(brokenData, { recursive: true }); fs.writeFileSync(path.join(brokenData, 'data.json'), '{broken')
   await launch(broken)
   assert.equal((await shell('window.api.core.status()')).reason, 'legacy-invalid')
   assert.match(await shell('location.href'), /^app:\/\/shell\//)
   assert.equal(fs.readFileSync(path.join(brokenData, 'data.json'), 'utf8'), '{broken')
   await close()
-  console.log('✓ Normal installed release: default HOME migration, unchanged JSON + verified archive, builtin runtime, v2 backup, restart without reimport, preferences, safe mode and invalid-source recovery. No qualification flags.')
+  console.log('✓ Normal installed release: ~/.data/ProjectTracker moved to ~/.data/amber, default HOME migration, unchanged JSON + verified archive, builtin runtime, v2 backup, restart without reimport, preferences, safe mode and invalid-source recovery. No qualification flags.')
 } finally {
   await close()
   try { assert.deepEqual(personal.map(fingerprint), before, 'Real personal data/profile changed') }
